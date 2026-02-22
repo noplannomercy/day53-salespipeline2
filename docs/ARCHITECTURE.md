@@ -62,7 +62,8 @@ src/
 │   ├── dashboard.service.ts
 │   ├── backup.service.ts         # [Wave 5] 전체 데이터 내보내기/가져오기
 │   ├── notification.service.ts   # [Wave 5] 알림 생성/조회/읽음 처리
-│   └── history.service.ts        # [Wave 5] 딜 변경 이력 기록/조회
+│   ├── history.service.ts        # [Wave 5] 딜 변경 이력 기록/조회
+│   └── settings.service.ts       # [Refactor W2] 앱 설정 읽기/저장/초기화 래퍼
 │
 ├── lib/
 │   ├── storage.ts                # localStorage 추상화
@@ -165,6 +166,7 @@ app/layout.tsx
 - **도메인 컴포넌트**: Props로 데이터 받아 표시/편집, 직접 서비스 호출 가능
 - **common 컴포넌트**: Props 기반 완전 재사용, 도메인 의존성 없음
 - **서비스 직접 호출**: page.tsx 또는 도메인 컴포넌트에서 허용 (common 컴포넌트는 금지)
+- **렌더 중 사이드 이펙트 금지**: localStorage 쓰기 등 side effect는 반드시 `useEffect` 내에서 실행. 렌더 본문에서 직접 호출 금지
 
 ---
 
@@ -195,6 +197,7 @@ localStorage
 | `seedIfEmpty<T>(key, data)` | 데이터 없을 때만 시드 데이터 주입 |
 | `getObject<T>(key)` | 단건 객체 조회 (배열이 아닌 단일 객체용) |
 | `saveObject<T>(key, obj)` | 단건 객체 저장 (배열이 아닌 단일 객체용) |
+| `clearAll()` | 앱이 관리하는 모든 STORAGE_KEYS 항목 일괄 삭제 `[Refactor W2]` |
 
 ### 서비스 함수 패턴
 
@@ -229,3 +232,19 @@ getDealById(id):
 ```
 
 컴포넌트는 완성된 데이터만 받으며, localStorage 키를 직접 알 필요 없음.
+
+### 삭제 cascade 정책 (서비스별 필수 구현)
+
+| 삭제 대상 | cascade 처리 대상 | 정책 |
+|-----------|------------------|------|
+| Pipeline | 하위 Stage | 삭제 |
+| Pipeline | 소속 Deal | 기본 파이프라인 첫 스테이지로 재배정 (삭제 파이프라인이 기본이면 Deal 삭제) |
+| Stage | 소속 Deal | 다음 스테이지로 재배정; 다음 스테이지 없으면 삭제 방지 |
+| Contact | Lead, Deal, Activity, Note, Email, EntityTag, Attachment | 전체 삭제 |
+| Company | Contact.companyId, Deal.companyId | null 처리 |
+| Company | Note, Attachment | 삭제 |
+| Deal | Activity, Note, Email, Attachment, EntityTag, DealHistory | 삭제 |
+| Tag | EntityTag | 삭제 |
+| Member | Deal.assignedTo, Activity.assignedTo, Lead.assignedTo | null 처리 |
+
+> **참고:** cascade 정책은 storage.ts 레이어에 없음. 각 서비스 함수 내에서 명시적으로 구현 필수.

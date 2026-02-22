@@ -6,23 +6,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { Notification } from '@/types/index';
 import {
-  getNotifications,
-  generateNotifications,
   markAsRead,
   markAllAsRead,
 } from '@/services/notification.service';
 import { formatDateTime } from '@/lib/utils';
 
 interface NotificationPanelProps {
+  notifications: Notification[];
   onCountChange: () => void;
 }
 
 export default function NotificationPanel({
+  notifications,
   onCountChange,
 }: NotificationPanelProps) {
-  // Generate fresh notifications then fetch sorted list
-  generateNotifications();
-  const notifications: Notification[] = getNotifications();
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id);

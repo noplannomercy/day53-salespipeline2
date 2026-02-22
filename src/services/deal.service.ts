@@ -18,7 +18,6 @@ import type {
   Attachment,
 } from '@/types/index';
 import * as historyService from '@/services/history.service';
-import { generateDealDeadlineNotifications } from '@/services/notification.service';
 
 const KEY = STORAGE_KEYS.DEALS;
 
@@ -28,9 +27,6 @@ const KEY = STORAGE_KEYS.DEALS;
  */
 export function getDeals(filters?: DealFilters): Deal[] {
   let items = storage.getAll<Deal>(KEY);
-
-  // Generate deal deadline notifications on each load
-  generateDealDeadlineNotifications();
 
   if (filters?.pipelineId) {
     items = items.filter((d) => d.pipelineId === filters.pipelineId);

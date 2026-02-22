@@ -20,7 +20,7 @@ export default function DarkModeProvider({
 }) {
   useEffect(() => {
     // 1. Apply dark mode from persisted settings (routed through storage.ts)
-    const settings = getObject<AppSettings>(STORAGE_KEYS.settings);
+    const settings = getObject<AppSettings>(STORAGE_KEYS.SETTINGS);
     if (settings?.darkMode) {
       document.documentElement.classList.add('dark');
     } else {

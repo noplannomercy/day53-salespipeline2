@@ -1,3 +1,179 @@
+# Refactor Wave 2 완료 로그
+
+## 완료 시각
+2026-02-22
+
+## 팀 구성
+- team-lead: 태스크 배분, 빌드/테스트 검증
+- developer-a (Opus): T-RF2-1 (STORAGE_KEYS 통합 + clearAll)
+- developer-b (Opus): T-RF2-2 (settings 서비스화)
+- developer-c (Opus): T-RF2-3 (사이드 이펙트 제거)
+
+## 태스크 배분
+
+| 태스크 | 파일 | 상태 | 비고 |
+|--------|------|------|------|
+| T-RF2-1 STORAGE_KEYS 통합 + clearAll() | storage.ts, DarkModeProvider.tsx | ✅ 완료 | re-export + UPPER_CASE 키 통일 |
+| T-RF2-2 settings 서비스화 | 신규 settings.service.ts, SettingsForm.tsx | ✅ 완료 | localStorage 직접 접근 제거 |
+| T-RF2-3 사이드 이펙트 제거 | deal.service.ts, Header.tsx, NotificationPanel.tsx | ✅ 완료 | 렌더 중 쓰기 제거, mount useEffect 이동 |
+
+## 수정 파일 현황
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| src/lib/storage.ts | STORAGE_KEYS 중복 정의 제거 → types/index.ts re-export. clearAll() 추가 |
+| src/components/layout/DarkModeProvider.tsx | STORAGE_KEYS.settings → STORAGE_KEYS.SETTINGS |
+| src/services/settings.service.ts | 신규: getSettings(), saveSettings(), resetAllData() |
+| src/components/settings/SettingsForm.tsx | localStorage 직접 접근 제거, settingsService 경유 |
+| src/services/deal.service.ts | getDeals() 내 generateDealDeadlineNotifications() 제거 |
+| src/components/layout/Header.tsx | mount useEffect에서 알림 생성 + 목록 로드, notifications 상태 추가 |
+| src/components/common/NotificationPanel.tsx | 렌더 중 사이드 이펙트 제거, notifications props 수신 |
+
+## Plan vs Actual
+
+| 항목 | 계획 | 실제 | 비고 |
+|------|------|------|------|
+| 수정 파일 수 | 1개 신규 + 6개 수정 | 1개 신규 + 6개 수정 | 계획과 동일 |
+| T-RF2-2 범위 | handleResetData() 수정만 | handleSave, useEffect도 서비스 경유로 통일 | 더 철저한 적용 |
+| 실행 순서 | 1단계 RF2-1, 2단계 병렬 RF2-2/RF2-3 | 계획과 동일 | 순서 준수 |
+
+## 빌드 / 테스트 결과
+
+| 항목 | 결과 |
+|------|------|
+| npm run build | ✅ 성공 (17개 라우트, TypeScript 오류 없음) |
+| npx playwright test | ✅ 73/73 통과 (기존 72/73 대비 +1) |
+
+**Refactor Wave 2 구현 태스크 3/3 완료 ✅**
+**npm run build: ✅ 성공 / playwright: 73/73 전원 통과**
+
+---
+
+# Refactor Wave 2 계획 로그
+
+## 작성 시각
+2026-02-22
+
+## 수행 작업
+
+| 작업 | 파일 | 내용 |
+|------|------|------|
+| 구현 계획 추가 | `docs/IMPLEMENTATION.md` | Refactor Wave 2 섹션 추가 — RF-01·RF-02·RF-04·RF-21 태스크 분해, Before/After, 구현 지침, 검증 기준 |
+| 아키텍처 문서 업데이트 | `docs/ARCHITECTURE.md` | `clearAll()` storage 인터페이스 추가, `settings.service.ts` 프로젝트 구조 추가, 렌더 중 사이드 이펙트 금지 원칙 추가 |
+
+## Refactor Wave 2 확정 태스크
+
+| # | 태스크 | 수정 파일 | RF |
+|---|--------|-----------|-----|
+| T-RF2-1 | STORAGE_KEYS 단일 소스 확립 + clearAll() 추가 | `storage.ts`, `DarkModeProvider.tsx` | RF-01 |
+| T-RF2-2 | settings 서비스화 + SettingsForm 수정 | 신규 `settings.service.ts`, `SettingsForm.tsx` | RF-04 |
+| T-RF2-3 | deal.service 순수화 + Header useEffect + NotificationPanel 프레젠테이션 분리 | `deal.service.ts`, `Header.tsx`, `NotificationPanel.tsx` | RF-02, RF-21 |
+
+## 실행 순서
+```
+1단계: T-RF2-1 (storage.ts 기반 정비)
+2단계 (병렬): T-RF2-2 / T-RF2-3
+```
+
+## 영향 범위
+- `docs/IMPLEMENTATION.md`: Refactor Wave 2 섹션 신규 추가 (총계: 41태스크 / 130파일)
+- `docs/ARCHITECTURE.md`: storage.ts 인터페이스 `clearAll()` 추가, `settings.service.ts` 구조 반영, 컴포넌트 설계 원칙 1항 추가
+- 코드 변경 없음 (계획 단계)
+
+---
+
+# Refactor Wave 1 완료 로그
+
+## 완료 시각
+2026-02-22
+
+## 팀 구성
+- team-lead: 태스크 배분, 서브에이전트 오케스트레이션
+- developer-a (Opus): T-RF1-1 (pipeline), T-RF1-2 (stage)
+- developer-b (Opus): T-RF1-3 (contact), T-RF1-4 (company)
+- reviewer (feature-dev:code-reviewer): 각 태스크 스펙 + 코드 품질 리뷰
+- tester (Bash): npm run build + npx playwright test
+
+## 태스크 배분
+
+| 태스크 | 파일 | 상태 | 비고 |
+|--------|------|------|------|
+| T-RF1-1 deletePipeline() 딜 재배정 | pipeline.service.ts | ✅ 완료 | 기본 파이프라인 재배정 + 자동 default 승격 추가 |
+| T-RF1-2 deleteStage() 딜 재배정/방지 | stage.service.ts | ✅ 완료 | 다음 스테이지 재배정, 마지막 스테이지 Error throw |
+| T-RF1-3 deleteContact() attachment cascade | contact.service.ts | ✅ 완료 | entityType='contact' 첨부파일 삭제 추가 |
+| T-RF1-4 deleteCompany() attachment cascade | company.service.ts | ✅ 완료 | entityType='company' 첨부파일 삭제 추가 |
+
+## 수정 파일 현황
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| src/services/pipeline.service.ts | deletePipeline() — 딜 재배정 + 기본 파이프라인 자동 승격 |
+| src/services/stage.service.ts | deleteStage() — 다음 스테이지 재배정, updatedAt 스탬프, 마지막 스테이지 삭제 방지 |
+| src/services/contact.service.ts | deleteContact() — Attachment 타입 import + cascade 블록 추가 |
+| src/services/company.service.ts | deleteCompany() — Attachment 타입 import + cascade 블록 추가 |
+
+## 계획 대비 차이 (Plan vs Actual)
+
+| 항목 | 계획 | 실제 | 비고 |
+|------|------|------|------|
+| 수정 파일 수 | 4개 | 4개 | 계획과 동일 |
+| deletePipeline() 정책 | 기본 파이프라인 첫 스테이지 재배정 | ✅ 구현 + default 파이프라인 자동 승격 추가 | 코드 리뷰에서 발견된 엣지 케이스 반영 |
+| deleteStage() 정책 | 다음 스테이지 재배정 or Error | ✅ 구현 + updatedAt 스탬프 추가 | 코드 리뷰에서 발견된 누락 반영 |
+| contact/company attachment cascade | entityType 기반 필터 삭제 | ✅ 계획과 동일 | 차이 없음 |
+
+## 빌드 / 테스트 결과
+
+| 항목 | 결과 |
+|------|------|
+| npm run build | ✅ 성공 (17개 라우트, TypeScript 오류 없음) |
+| npx playwright test | ✅ 72/73 통과 (1 실패: wave4 flaky timeout, Refactor Wave 1과 무관) |
+
+## 기술 부채 (코드 리뷰 중 발견, 해결)
+
+| 심각도 | 항목 | 처리 |
+|--------|------|------|
+| Important | deletePipeline() — 기본 파이프라인 삭제 후 default 없음 | ✅ 자동 승격 로직 추가 |
+| Important | deleteStage() — 방어 코드에서 orphan deal 무시하고 silent return | ✅ throw Error로 교체 |
+| Minor | deleteStage() — orphanIds Set 중복 생성 | ✅ 사전 추출로 수정 |
+| Minor | deleteStage() — deal 재배정 시 updatedAt 미갱신 | ✅ updatedAt 스탬프 추가 |
+
+**Refactor Wave 1 구현 태스크 4/4 완료 ✅**
+**npm run build: ✅ 성공 / playwright: 72/73 통과**
+
+---
+
+# Refactor Wave 1 계획 로그
+
+## 작성 시각
+2026-02-22
+
+## 수행 작업
+
+| 작업 | 파일 | 내용 |
+|------|------|------|
+| Refactor Discovery | `docs/REFACTOR-DISCOVERY.md` (신규) | 코드베이스 전체 분석 후 리팩토링 대상 RF-01~RF-23 식별 (서비스 18개, 컴포넌트 다수 분석) |
+| 구현 계획 추가 | `docs/IMPLEMENTATION.md` | Refactor Wave 1 섹션 추가 — RF-05, RF-06, RF-07 태스크 분해, Before/After, 구현 지침, 검증 기준 |
+| 아키텍처 문서 업데이트 | `docs/ARCHITECTURE.md` | 삭제 cascade 정책 표 추가 (9개 엔티티 × 대상/정책) |
+| 프로젝트 지침 업데이트 | `CLAUDE.md` | `docs/REFACTOR-DISCOVERY.md` 참고 문서 추가 (51줄) |
+
+## Refactor Wave 1 구현 태스크
+
+| # | 태스크 | 수정 파일 | 문제 (RF-ID) |
+|---|--------|-----------|--------------|
+| T-RF1-1 | `deletePipeline()` 딜 재배정 | `pipeline.service.ts` | RF-05 |
+| T-RF1-2 | `deleteStage()` 딜 재배정/방지 | `stage.service.ts` | RF-06 |
+| T-RF1-3 | `deleteContact()` attachment cascade | `contact.service.ts` | RF-07a |
+| T-RF1-4 | `deleteCompany()` attachment cascade | `company.service.ts` | RF-07b |
+
+## 영향 범위
+- `docs/REFACTOR-DISCOVERY.md`: 신규 생성 (코드베이스 분석 결과)
+- `docs/IMPLEMENTATION.md`: Refactor Wave 1 섹션 추가 (총계: 38태스크 / 123파일)
+- `docs/ARCHITECTURE.md`: cascade 정책 표 추가
+- `CLAUDE.md`: 참고 문서 1개 추가 (51줄)
+- 코드 변경 없음 (계획 단계)
+
+---
+
 # Wave 6 최종 로그
 
 ## 시작 시각

@@ -37,7 +37,7 @@ npm run lint      # ESLint 검사
 - 호출 체인: 컴포넌트 → 서비스(`*.service.ts`) → `storage.ts` → localStorage
 - 앱 최초 실행 시 `src/lib/seed.ts`의 `initSeedData()` 호출 (내부적으로 `seedIfEmpty` 사용). `seedAll`은 deprecated alias
 - 시드 데이터 ID: 하드코딩 형식 (`'pipeline-1'`, `'stage-1-1'` 등). 런타임 생성은 `generateId()` 사용
-- `STORAGE_KEYS` 상수: `src/types/index.ts`와 `src/lib/storage.ts` 양쪽에 정의됨. seed.ts는 types에서 import
+- `STORAGE_KEYS` 상수: `src/types/index.ts` 단일 소스 (UPPER_CASE 키). `storage.ts`는 re-export만 함. seed.ts도 types에서 import
 - 관계는 FK(ID 문자열)로만 저장, JOIN은 서비스 레이어에서 메모리 내 처리
 - 삭제 시 cascade 없으므로 서비스 함수 내 명시적 연관 데이터 cleanup 필수
 
@@ -47,3 +47,4 @@ npm run lint      # ESLint 검사
 - `docs/UI-DESIGN.md` — 페이지 레이아웃, 컴포넌트 목록, UI 패턴
 - `docs/IMPLEMENTATION.md` — Wave별 구현 계획 및 태스크 분해
 - `docs/FEATURE-DISCOVERY.md` — Wave 5 확정 피처 목록 (W5-1 ~ W5-8)
+- `docs/REFACTOR-DISCOVERY.md` — 리팩토링 대상 목록 (RF-01 ~ RF-23)

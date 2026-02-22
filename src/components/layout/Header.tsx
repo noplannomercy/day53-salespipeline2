@@ -5,7 +5,13 @@ import { usePathname } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import NotificationPanel from '@/components/common/NotificationPanel';
-import { getUnreadCount } from '@/services/notification.service';
+import {
+  generateDealDeadlineNotifications,
+  generateNotifications,
+  getNotifications,
+  getUnreadCount,
+} from '@/services/notification.service';
+import type { Notification } from '@/types/index';
 
 // Map of path segments to Korean page titles
 const PAGE_TITLES: Record<string, string> = {
@@ -35,11 +41,19 @@ export default function Header() {
   const pageTitle = getPageTitle(pathname);
   const [panelOpen, setPanelOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const refreshCount = useCallback(() => {
+  const loadNotifications = useCallback(() => {
+    setNotifications(getNotifications());
     setUnread(getUnreadCount());
   }, []);
+
+  useEffect(() => {
+    generateDealDeadlineNotifications();
+    generateNotifications();
+    loadNotifications();
+  }, [loadNotifications]);
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -57,7 +71,7 @@ export default function Header() {
   }, [panelOpen]);
 
   const handleBellClick = () => {
-    refreshCount();
+    loadNotifications();
     setPanelOpen((prev) => !prev);
   };
 
@@ -84,7 +98,8 @@ export default function Header() {
 
           {panelOpen && (
             <NotificationPanel
-              onCountChange={refreshCount}
+              notifications={notifications}
+              onCountChange={loadNotifications}
             />
           )}
         </div>

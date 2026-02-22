@@ -6,6 +6,7 @@ import type {
   Contact,
   Deal,
   Note,
+  Attachment,
 } from '@/types/index';
 import * as storage from '@/lib/storage';
 
@@ -99,6 +100,15 @@ export function deleteCompany(id: string): void {
     STORAGE_KEYS.NOTES,
     notes.filter((n) => n.companyId !== id),
   );
+
+  // Remove attachments for this company
+  const attachments = storage.getAll<Attachment>(STORAGE_KEYS.ATTACHMENTS);
+  const remainingAttachments = attachments.filter(
+    (a) => !(a.entityType === 'company' && a.entityId === id),
+  );
+  if (remainingAttachments.length !== attachments.length) {
+    storage.save(STORAGE_KEYS.ATTACHMENTS, remainingAttachments);
+  }
 
   storage.remove(STORAGE_KEYS.COMPANIES, id);
 }

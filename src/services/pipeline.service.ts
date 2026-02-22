@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from '@/types/index';
-import type { Pipeline } from '@/types/index';
+import type { Pipeline, Stage, Deal } from '@/types/index';
 import * as storage from '@/lib/storage';
 
 /**
@@ -45,17 +45,68 @@ export function updatePipeline(
 
 /**
  * Delete a pipeline and all associated stages.
- * Also removes deals that belong to this pipeline.
+ * Orphan deals are reassigned to the default pipeline's lowest-order stage
+ * when possible; otherwise they are deleted.
  */
 export function deletePipeline(id: string): void {
-  // Remove associated stages
-  const stages = storage.getAll<{ id: string; pipelineId: string }>(
-    STORAGE_KEYS.STAGES,
+  // 1. Collect stage IDs that belong to the pipeline being deleted
+  const allStages = storage.getAll<Stage>(STORAGE_KEYS.STAGES);
+  const deletedStageIds = new Set(
+    allStages.filter((s) => s.pipelineId === id).map((s) => s.id),
   );
-  const remaining = stages.filter((s) => s.pipelineId !== id);
-  storage.save(STORAGE_KEYS.STAGES, remaining);
 
+  // 2. Find orphan deals whose stageId falls within the deleted stages
+  const allDeals = storage.getAll<Deal>(STORAGE_KEYS.DEALS);
+  const orphanDeals = allDeals.filter((d) => deletedStageIds.has(d.stageId));
+
+  if (orphanDeals.length > 0) {
+    // 3. Find the default pipeline (excluding the one being deleted)
+    const allPipelines = storage.getAll<Pipeline>(STORAGE_KEYS.PIPELINES);
+    const defaultPipeline = allPipelines.find(
+      (p) => p.isDefault && p.id !== id,
+    );
+
+    // 4. Determine the target stage (lowest order in the default pipeline)
+    const defaultStages = defaultPipeline
+      ? allStages
+          .filter((s) => s.pipelineId === defaultPipeline.id)
+          .sort((a, b) => a.order - b.order)
+      : [];
+
+    const orphanIds = new Set(orphanDeals.map((d) => d.id));
+
+    if (defaultPipeline && defaultStages.length > 0) {
+      // Reassign orphan deals to the default pipeline's first stage
+      const targetStage = defaultStages[0];
+      const updatedDeals = allDeals.map((d) =>
+        orphanIds.has(d.id)
+          ? { ...d, pipelineId: defaultPipeline.id, stageId: targetStage.id }
+          : d,
+      );
+      storage.save(STORAGE_KEYS.DEALS, updatedDeals);
+    } else {
+      // No valid default pipeline / no stages — delete orphan deals
+      const remainingDeals = allDeals.filter((d) => !orphanIds.has(d.id));
+      storage.save(STORAGE_KEYS.DEALS, remainingDeals);
+    }
+  }
+
+  // 5. Remove stages belonging to this pipeline
+  const remainingStages = allStages.filter((s) => s.pipelineId !== id);
+  storage.save(STORAGE_KEYS.STAGES, remainingStages);
+
+  // 6. Remove the pipeline itself
   storage.remove(STORAGE_KEYS.PIPELINES, id);
+
+  // 7. Ensure a default pipeline still exists
+  const remaining = storage.getAll<Pipeline>(STORAGE_KEYS.PIPELINES);
+  if (remaining.length > 0 && !remaining.some((p) => p.isDefault)) {
+    const promoted = [
+      { ...remaining[0], isDefault: true },
+      ...remaining.slice(1),
+    ];
+    storage.save(STORAGE_KEYS.PIPELINES, promoted);
+  }
 }
 
 /**

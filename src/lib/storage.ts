@@ -4,32 +4,9 @@
 // Direct localStorage calls elsewhere in the codebase are forbidden.
 // Call chain: Component → Service (*.service.ts) → storage.ts → localStorage
 
-// ─────────────────────────────────────────────
-// Storage key constants
-// ─────────────────────────────────────────────
+import { STORAGE_KEYS as _STORAGE_KEYS } from '@/types/index';
 
-export const STORAGE_KEYS = {
-  pipelines:   'sp_pipelines',
-  stages:      'sp_stages',
-  companies:   'sp_companies',
-  contacts:    'sp_contacts',
-  leads:       'sp_leads',
-  deals:       'sp_deals',
-  activities:  'sp_activities',
-  notes:       'sp_notes',
-  tags:        'sp_tags',
-  entityTags:  'sp_entity_tags',
-  emails:      'sp_emails',
-  attachments: 'sp_attachments',
-  members:     'sp_members',
-  reports:     'sp_reports',
-  settings:    'sp_settings',
-  dealHistory: 'sp_deal_history',
-  notifications: 'sp_notifications',
-  templates: 'sp_templates',
-} as const;
-
-export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
+export { STORAGE_KEYS, type StorageKey } from '@/types/index';
 
 // ─────────────────────────────────────────────
 // CRUD helpers
@@ -190,4 +167,18 @@ export function saveObject<T>(key: string, value: T): void {
   } catch (err) {
     console.error(`[storage] Failed to saveObject at "${key}":`, err);
   }
+}
+
+/**
+ * Remove all app-managed localStorage keys in one shot.
+ * Called by settings.service.ts::resetAllData().
+ */
+export function clearAll(): void {
+  Object.values(_STORAGE_KEYS).forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Silently ignore
+    }
+  });
 }

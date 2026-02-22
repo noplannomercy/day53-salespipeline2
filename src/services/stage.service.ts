@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from '@/types/index';
-import type { Stage } from '@/types/index';
+import type { Stage, Deal } from '@/types/index';
 import * as storage from '@/lib/storage';
 
 /**
@@ -42,8 +42,36 @@ export function updateStage(
 
 /**
  * Delete a stage by ID.
+ * If the stage has deals, reassign them to the next stage in the same pipeline.
+ * If there is no next stage, throw an error.
  */
 export function deleteStage(id: string): void {
+  const allDeals = storage.getAll<Deal>(STORAGE_KEYS.DEALS);
+  const orphanDeals = allDeals.filter((d) => d.stageId === id);
+
+  if (orphanDeals.length > 0) {
+    const stage = storage.getById<Stage>(STORAGE_KEYS.STAGES, id);
+    if (!stage) {
+      throw new Error('스테이지를 찾을 수 없습니다.');
+    }
+
+    const allStages = storage.getAll<Stage>(STORAGE_KEYS.STAGES);
+    const nextStage = allStages
+      .filter((s) => s.pipelineId === stage.pipelineId && s.order > stage.order)
+      .sort((a, b) => a.order - b.order)[0];
+
+    if (!nextStage) {
+      throw new Error('이 스테이지에 딜이 있어 삭제할 수 없습니다. 먼저 딜을 다른 스테이지로 이동하세요.');
+    }
+
+    const orphanIds = new Set(orphanDeals.map((d) => d.id));
+    const now = new Date().toISOString();
+    const updatedDeals = allDeals.map((d) =>
+      orphanIds.has(d.id) ? { ...d, stageId: nextStage.id, updatedAt: now } : d,
+    );
+    storage.save(STORAGE_KEYS.DEALS, updatedDeals);
+  }
+
   storage.remove(STORAGE_KEYS.STAGES, id);
 }
 

@@ -13,9 +13,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Upload } from 'lucide-react';
 import type { AppSettings, Pipeline, DealCurrency } from '@/types/index';
-import { STORAGE_KEYS } from '@/types/index';
-import * as storage from '@/lib/storage';
 import * as pipelineService from '@/services/pipeline.service';
+import * as settingsService from '@/services/settings.service';
 import * as backupService from '@/services/backup.service';
 
 interface SettingsFormProps {
@@ -27,14 +26,12 @@ const CURRENCY_OPTIONS: { value: DealCurrency; label: string }[] = [
   { value: 'USD', label: 'USD ($)' },
 ];
 
-const DEFAULT_SETTINGS: AppSettings = {
-  defaultPipelineId: '',
-  defaultCurrency: 'KRW',
-  darkMode: false,
-};
-
 export default function SettingsForm({ onSaved }: SettingsFormProps) {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>({
+    defaultPipelineId: '',
+    defaultCurrency: 'KRW',
+    darkMode: false,
+  });
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -42,14 +39,11 @@ export default function SettingsForm({ onSaved }: SettingsFormProps) {
 
   useEffect(() => {
     setPipelines(pipelineService.getPipelines());
-    const stored = storage.getObject<AppSettings>(STORAGE_KEYS.SETTINGS);
-    if (stored) {
-      setSettings(stored);
-    }
+    setSettings(settingsService.getSettings());
   }, []);
 
   function handleSave() {
-    storage.saveObject(STORAGE_KEYS.SETTINGS, settings);
+    settingsService.saveSettings(settings);
 
     // Apply dark mode immediately
     if (settings.darkMode) {
@@ -62,16 +56,7 @@ export default function SettingsForm({ onSaved }: SettingsFormProps) {
   }
 
   function handleResetData() {
-    // Clear all localStorage keys managed by the app
-    const keys = Object.values(STORAGE_KEYS);
-    for (const key of keys) {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // Silently ignore removal failures
-      }
-    }
-
+    settingsService.resetAllData();
     // Reload the page to re-seed default data
     window.location.reload();
   }

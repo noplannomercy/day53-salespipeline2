@@ -394,3 +394,191 @@ Wave 3에서 placeholder로 두었던 딜 상세 탭을 Wave 4 서비스 완성 
 | Wave 5 | 7개 | 21개 |
 | Wave 6 | 5개 | 11개 (신규 4 + 수정 7) |
 | **합계** | **34개** | **119개** |
+
+---
+
+## Refactor Wave 1 — 데이터 무결성 수정
+
+> 기준: `docs/REFACTOR-DISCOVERY.md` RF-05 · RF-06 · RF-07
+> 목적: cascade 삭제 누락으로 인한 orphan 데이터 방지
+> 신규 파일 없음 — 기존 서비스 함수만 수정
+
+### 수정 대상 및 Before / After
+
+| ID | 파일 | 함수 | Before | After |
+|----|------|------|--------|-------|
+| RF-05 | `src/services/pipeline.service.ts` | `deletePipeline()` | 스테이지만 삭제, 소속 딜 orphan | 딜을 기본 파이프라인 첫 스테이지로 재배정 후 삭제 |
+| RF-06 | `src/services/stage.service.ts` | `deleteStage()` | 스테이지만 삭제, 소속 딜 orphan | 딜을 다음 스테이지로 재배정; 다음 스테이지 없으면 삭제 방지 |
+| RF-07a | `src/services/contact.service.ts` | `deleteContact()` | deals/활동/노트/이메일 cascade 있음, Attachment 누락 | 기존 cascade 끝에 entityType='contact' attachment 삭제 추가 |
+| RF-07b | `src/services/company.service.ts` | `deleteCompany()` | contacts FK nullify, deals FK nullify, notes 삭제, Attachment 누락 | 기존 cascade 끝에 entityType='company' attachment 삭제 추가 |
+
+### 수정 파일 목록
+
+| 파일 | 변경 유형 | 변경 함수 | 읽기 참조 추가 |
+|------|-----------|-----------|---------------|
+| `src/services/pipeline.service.ts` | 수정 | `deletePipeline()` | `STORAGE_KEYS.DEALS`, `STORAGE_KEYS.STAGES` |
+| `src/services/stage.service.ts` | 수정 | `deleteStage()` | `STORAGE_KEYS.DEALS`, `STORAGE_KEYS.STAGES` |
+| `src/services/contact.service.ts` | 수정 | `deleteContact()` | `STORAGE_KEYS.ATTACHMENTS` |
+| `src/services/company.service.ts` | 수정 | `deleteCompany()` | `STORAGE_KEYS.ATTACHMENTS` |
+
+### 태스크 분해
+
+| # | 태스크 | 수정 파일 | 병렬 그룹 |
+|---|--------|-----------|-----------|
+| T-RF1-1 | `deletePipeline()` — 딜 재배정 로직 추가 | `pipeline.service.ts` | 1단계 |
+| T-RF1-2 | `deleteStage()` — 딜 재배정 또는 삭제 방지 | `stage.service.ts` | 2단계 |
+| T-RF1-3 | `deleteContact()` — attachment cascade 추가 | `contact.service.ts` | 1단계 |
+| T-RF1-4 | `deleteCompany()` — attachment cascade 추가 | `company.service.ts` | 1단계 |
+
+**안전한 실행 순서 (의존성 기준):**
+```
+1단계 (병렬 가능): T-RF1-1 / T-RF1-3 / T-RF1-4
+2단계 (순차):      T-RF1-2 — T-RF1-1의 정책(딜 재배정) 확인 후 동일 전략 적용
+```
+
+### 구현 세부 지침 (코드 아님 — 로직 명세)
+
+#### T-RF1-1: `pipeline.service.ts::deletePipeline()`
+1. 삭제할 파이프라인 소속 스테이지 ID 목록 수집 (기존 코드 활용)
+2. 해당 스테이지들에 속한 딜 전체 조회 (`STORAGE_KEYS.DEALS`)
+3. 기본 파이프라인(`isDefault: true`) 조회
+4. 기본 파이프라인의 첫 스테이지(order 최솟값) 조회
+5. 소속 딜의 `pipelineId`, `stageId`를 기본 파이프라인 첫 스테이지로 일괄 업데이트 후 `storage.save()`
+6. 예외 처리: 삭제 대상이 기본 파이프라인이거나 기본 파이프라인에 스테이지가 없으면 딜 삭제 처리
+7. 기존 스테이지 삭제 → 파이프라인 삭제 순서 유지
+
+#### T-RF1-2: `stage.service.ts::deleteStage()`
+1. 삭제할 스테이지 소속 딜 조회 (`STORAGE_KEYS.DEALS`, `stageId === id` 필터)
+2. 딜이 있으면: 같은 파이프라인(`pipelineId` 동일)에서 `order`가 더 큰 스테이지 중 최솟값 조회
+3. 다음 스테이지 있으면 → 딜의 `stageId`를 다음 스테이지 ID로 업데이트 후 스테이지 삭제 진행
+4. 다음 스테이지 없으면 (마지막 스테이지) → `Error` throw, 삭제 방지
+5. 딜이 없으면 → 스테이지 바로 삭제
+
+#### T-RF1-3: `contact.service.ts::deleteContact()`
+- 기존 cascade 블록 마지막에 추가
+- `STORAGE_KEYS.ATTACHMENTS`에서 전체 조회 → `entityType === 'contact' && entityId === id` 필터링 → 나머지만 `storage.save()`
+
+#### T-RF1-4: `company.service.ts::deleteCompany()`
+- 기존 cascade 블록 마지막에 추가
+- `STORAGE_KEYS.ATTACHMENTS`에서 전체 조회 → `entityType === 'company' && entityId === id` 필터링 → 나머지만 `storage.save()`
+
+### 검증 기준
+
+| 케이스 | 기대 동작 |
+|--------|-----------|
+| 딜이 있는 파이프라인 삭제 | 딜이 기본 파이프라인 첫 스테이지로 이동 |
+| 딜이 없는 파이프라인 삭제 | 정상 삭제, 딜 영향 없음 |
+| 중간 스테이지(딜 있음) 삭제 | 딜이 다음 스테이지로 이동 |
+| 마지막 스테이지(딜 있음) 삭제 | 에러 발생, 삭제 방지 |
+| 딜이 없는 스테이지 삭제 | 정상 삭제 |
+| 컨택 삭제 | 연관 Attachment 함께 삭제 |
+| 회사 삭제 | 연관 Attachment 함께 삭제 |
+
+### 전체 태스크 요약 (Refactor Wave 1 포함)
+
+| Wave | 태스크 수 | 파일 수 |
+|------|----------|---------|
+| Wave 1–6 | 34개 | 119개 |
+| Refactor Wave 1 | 4개 | 4개 수정 |
+| **합계** | **38개** | **123개** |
+
+---
+
+## Refactor Wave 2 — 아키텍처 위반 수정
+
+> 기준: `docs/REFACTOR-DISCOVERY.md` RF-01 · RF-02 · RF-04 · RF-21
+> 목적: STORAGE_KEYS 단일 소스 확립 / localStorage 직접 접근 제거 / 읽기 함수 순수성 확보 / 렌더 중 사이드 이펙트 제거
+> 신규 파일: `src/services/settings.service.ts` 1개 — 나머지는 기존 파일 수정
+
+### 수정 대상 및 Before / After
+
+| ID | 파일 | Before | After |
+|----|------|--------|-------|
+| RF-01 | `storage.ts`, `types/index.ts`, `DarkModeProvider.tsx` | `STORAGE_KEYS`가 두 파일에 각각 정의 (types: UPPER_CASE, storage: camelCase) | `storage.ts` 정의 삭제 + `types/index.ts`에서 re-export. `DarkModeProvider`는 types에서 import로 변경 |
+| RF-02 | `deal.service.ts`, `Header.tsx` | `getDeals()` 안에서 `generateDealDeadlineNotifications()` 쓰기 호출 | `getDeals()`에서 호출 제거. `Header.tsx` mount `useEffect`로 이동 |
+| RF-04 | `SettingsForm.tsx`, `storage.ts`, `settings.service.ts`(신규) | `SettingsForm.tsx`에서 `localStorage.removeItem()` 루프 직접 호출 | `storage.ts`에 `clearAll()` 추가 → 신규 `settings.service.ts`에 `resetAllData()` → `SettingsForm`에서 서비스 호출 |
+| RF-21 | `NotificationPanel.tsx`, `Header.tsx` | `generateNotifications()` 쓰기 함수를 렌더 본문에서 직접 호출 | `Header.tsx` mount `useEffect`로 이동. `NotificationPanel`은 `notifications: Notification[]` props를 받는 프레젠테이션 컴포넌트로 분리 |
+
+### 수정/신규 파일 목록
+
+| 파일 | 변경 유형 | 변경 내용 | RF |
+|------|-----------|-----------|-----|
+| `src/lib/storage.ts` | 수정 | `STORAGE_KEYS` 정의 제거 → `types/index.ts`에서 re-export. `clearAll()` 함수 추가 | RF-01, RF-04 |
+| `src/components/layout/DarkModeProvider.tsx` | 수정 | `STORAGE_KEYS` import 경로 `@/lib/storage` → `@/types/index`. 키 이름 `settings` → `SETTINGS` | RF-01 |
+| `src/services/deal.service.ts` | 수정 | `getDeals()` 내 `generateDealDeadlineNotifications()` 호출 제거. 관련 import 제거 | RF-02 |
+| `src/services/settings.service.ts` | 신규 | `getSettings()`, `saveSettings()`, `resetAllData()` 3개 함수 | RF-04 |
+| `src/components/settings/SettingsForm.tsx` | 수정 | `handleResetData()` — `localStorage.removeItem()` 루프 → `settingsService.resetAllData()` 호출 | RF-04 |
+| `src/components/layout/Header.tsx` | 수정 | mount `useEffect` 추가: `generateDealDeadlineNotifications()` + `generateNotifications()` 각 1회. `notifications` 상태 추가. `NotificationPanel`에 `notifications` props 전달 | RF-02, RF-21 |
+| `src/components/common/NotificationPanel.tsx` | 수정 | 렌더 중 `generateNotifications()` 호출 제거. `notifications: Notification[]` props 수령으로 변환 | RF-21 |
+
+### 태스크 분해
+
+| # | 태스크 | 수정 파일 | 병렬 그룹 |
+|---|--------|-----------|-----------|
+| T-RF2-1 | **RF-01 STORAGE_KEYS 통합 + clearAll 추가** — `storage.ts` 정의 제거 및 re-export, `clearAll()` 추가, `DarkModeProvider` import 경로·키 이름 수정 | `storage.ts`, `DarkModeProvider.tsx` | 1단계 |
+| T-RF2-2 | **RF-04 settings 서비스화** — `settings.service.ts` 신규 생성, `SettingsForm.tsx` 수정 | 신규 `settings.service.ts`, `SettingsForm.tsx` | 2단계 (T-RF2-1 이후) |
+| T-RF2-3 | **RF-02 + RF-21 통합** — `deal.service.ts` 사이드 이펙트 제거, `Header.tsx` useEffect 추가, `NotificationPanel.tsx` 프레젠테이션 분리 | `deal.service.ts`, `Header.tsx`, `NotificationPanel.tsx` | 2단계 (T-RF2-1 이후, T-RF2-2와 병렬) |
+
+**안전한 실행 순서:**
+```
+1단계 (순차): T-RF2-1 — storage.ts 단일 소스 확립 (다른 태스크의 기반)
+2단계 (병렬): T-RF2-2 / T-RF2-3 — storage.ts 수정 완료 후 병렬 진행 가능
+```
+
+> ⚠️ `storage.ts`는 T-RF2-1(STORAGE_KEYS 제거)과 T-RF2-1(clearAll 추가) 모두 포함 — 단일 태스크로 처리.
+> ⚠️ `Header.tsx`는 T-RF2-3에서 RF-02와 RF-21 양쪽 수정 — 동일 태스크로 통합해 충돌 방지.
+
+### 구현 세부 지침 (코드 아님 — 로직 명세)
+
+#### T-RF2-1: storage.ts 통합
+1. `storage.ts`의 `STORAGE_KEYS` 상수 정의 블록 전체 삭제 (`as const` 포함)
+2. `StorageKey` 타입 정의 삭제
+3. `types/index.ts`에서 re-export 추가: `export { STORAGE_KEYS, type StorageKey } from '@/types/index';` 단, circular import 방지 위해 storage.ts가 types를 import하는 단방향 구조 유지
+4. `clearAll()` 함수 추가: `Object.values(STORAGE_KEYS).forEach(key => { try { localStorage.removeItem(key); } catch {} })`
+5. `DarkModeProvider.tsx`: import 경로 `@/lib/storage` → `@/types/index` (STORAGE_KEYS만), 키 이름 `STORAGE_KEYS.settings` → `STORAGE_KEYS.SETTINGS`
+
+#### T-RF2-2: settings 서비스화
+1. `src/services/settings.service.ts` 신규 생성:
+   - `getSettings(): AppSettings` — `storage.getObject<AppSettings>(STORAGE_KEYS.SETTINGS) ?? DEFAULT_SETTINGS`
+   - `saveSettings(settings: AppSettings): void` — `storage.saveObject(STORAGE_KEYS.SETTINGS, settings)`
+   - `resetAllData(): void` — `clearAll()` 호출 후 `window.location.reload()` 는 컴포넌트 책임으로 남김
+2. `SettingsForm.tsx` 수정:
+   - `handleResetData()`: `localStorage.removeItem()` 루프 삭제 → `settingsService.resetAllData()` 호출
+   - `import * as settingsService from '@/services/settings.service'` 추가
+
+#### T-RF2-3: Header + NotificationPanel + deal.service
+1. `deal.service.ts`:
+   - `getDeals()` line 33: `generateDealDeadlineNotifications()` 호출 제거
+   - line 21: `import { generateDealDeadlineNotifications } from '@/services/notification.service'` 제거
+2. `Header.tsx`:
+   - `import { generateDealDeadlineNotifications, generateNotifications, getNotifications } from '@/services/notification.service'` 추가
+   - `import type { Notification } from '@/types/index'` 추가
+   - `const [notifications, setNotifications] = useState<Notification[]>([])` 추가
+   - `loadNotifications()` 함수: `setNotifications(getNotifications()); setUnread(getUnreadCount());`
+   - mount useEffect: `generateDealDeadlineNotifications(); generateNotifications(); loadNotifications();`
+   - `refreshCount` → `loadNotifications`로 통합 (setUnread + setNotifications 동시)
+   - `NotificationPanel`에 `notifications={notifications}` prop 추가
+3. `NotificationPanel.tsx`:
+   - interface `NotificationPanelProps`: `onCountChange` → `onCountChange`, `notifications: Notification[]` 추가
+   - 렌더 본문 `generateNotifications()` 호출 제거 (line 24)
+   - `getNotifications()` 직접 호출 제거 (line 25)
+   - `const notifications` 지역 변수 제거 → props.notifications 사용
+
+### 검증 기준
+
+| 케이스 | 기대 동작 |
+|--------|-----------|
+| `STORAGE_KEYS` import 검사 | `grep -r "STORAGE_KEYS" --include="*.ts" --include="*.tsx"` 결과에서 `from '@/lib/storage'` import 없음 |
+| 데이터 초기화 클릭 | `settingsService.resetAllData()` → `storage.clearAll()` 경유, localStorage 직접 접근 없음 |
+| 딜 목록 페이지 방문 | `getDeals()` 호출 시 console에 notification 생성 로그 없음 |
+| 앱 최초 로드 | Header mount 시 `generateDealDeadlineNotifications()` + `generateNotifications()` 각 1회 실행 |
+| 알림 패널 열기 | 렌더 중 localStorage 쓰기 없음 (React Strict Mode에서 렌더 2회 실행 시에도 쓰기 발생 안 함) |
+
+### 전체 태스크 요약 (Refactor Wave 2 포함)
+
+| Wave | 태스크 수 | 파일 수 |
+|------|----------|---------|
+| Wave 1–6 | 34개 | 119개 |
+| Refactor Wave 1 | 4개 | 4개 수정 |
+| Refactor Wave 2 | 3개 | 1개 신규 + 6개 수정 |
+| **합계** | **41개** | **130개** |

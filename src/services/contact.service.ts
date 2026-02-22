@@ -13,6 +13,7 @@ import type {
   Email,
   EntityTag,
   Tag,
+  Attachment,
 } from '@/types/index';
 
 const KEY = STORAGE_KEYS.CONTACTS;
@@ -144,6 +145,15 @@ export function deleteContact(id: string): void {
   const remainingEmails = emails.filter((e) => e.contactId !== id);
   if (remainingEmails.length !== emails.length) {
     storage.save(STORAGE_KEYS.EMAILS, remainingEmails);
+  }
+
+  // Clean up attachments for this contact
+  const attachments = storage.getAll<Attachment>(STORAGE_KEYS.ATTACHMENTS);
+  const remainingAttachments = attachments.filter(
+    (a) => !(a.entityType === 'contact' && a.entityId === id),
+  );
+  if (remainingAttachments.length !== attachments.length) {
+    storage.save(STORAGE_KEYS.ATTACHMENTS, remainingAttachments);
   }
 
   storage.remove(KEY, id);
