@@ -17,7 +17,7 @@
 
 ## 1. 아키텍처 / 구조적 문제
 
-### RF-01 · STORAGE_KEYS 이중 정의
+### RF-01 · STORAGE_KEYS 이중 정의 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -29,7 +29,7 @@
 
 ---
 
-### RF-02 · `getDeals()` 내 사이드 이펙트
+### RF-02 · `getDeals()` 내 사이드 이펙트 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -53,7 +53,7 @@
 
 ---
 
-### RF-04 · `SettingsForm` 직접 localStorage 접근
+### RF-04 · `SettingsForm` 직접 localStorage 접근 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -67,7 +67,7 @@
 
 ## 2. 데이터 무결성 (캐스케이드 누락)
 
-### RF-05 · `deletePipeline()` — 딜 cascade 미처리
+### RF-05 · `deletePipeline()` — 딜 cascade 미처리 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -79,7 +79,7 @@
 
 ---
 
-### RF-06 · `deleteStage()` — 딜 cascade 미처리
+### RF-06 · `deleteStage()` — 딜 cascade 미처리 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -91,7 +91,7 @@
 
 ---
 
-### RF-07 · `deleteContact()` / `deleteCompany()` — attachment cascade 누락
+### RF-07 · `deleteContact()` / `deleteCompany()` — attachment cascade 누락 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -267,7 +267,7 @@
 
 ## 6. 성능 / 렌더링 패턴
 
-### RF-21 · `NotificationPanel` 렌더 중 사이드 이펙트 실행
+### RF-21 · `NotificationPanel` 렌더 중 사이드 이펙트 실행 ✅ 완료
 
 | 항목 | 내용 |
 |------|------|
@@ -303,24 +303,124 @@
 
 ---
 
+## 7. 서비스 레이어 일관성
+
+### RF-24 · `member.service.ts` — FK nullify 시 빈 문자열 사용
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/services/member.service.ts` (`deleteMember()` 내부 3회) |
+| 문제점 | `assignedTo` FK를 `null` 대신 빈 문자열 `''`로 대체해 FK 의미와 다른 서비스 패턴에서 이탈 |
+| 개선 방향 | `.map()` 반환값을 `{ ...d, assignedTo: null }`로 변경, `Deal.assignedTo` 타입이 `string`이라면 `string \| null`로 수정 |
+| 난이도 | 하 |
+| 영향 범위 | `member.service.ts`, `src/types/index.ts` (타입 변경 필요 시) |
+
+---
+
+### RF-25 · `lead.service.ts` — `convertLeadToDeal()` 서비스 레이어 우회
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/services/lead.service.ts` (`convertLeadToDeal()`, line 126-140) |
+| 문제점 | 딜 생성 시 `deal.service.ts`를 거치지 않고 `storage.create<Deal>()`을 직접 호출해 히스토리 기록 및 cascade 로직 누락 |
+| 개선 방향 | `import * as dealService from './deal.service'` 후 `dealService.createDeal()`로 교체 |
+| 난이도 | 하 |
+| 영향 범위 | `lead.service.ts`, `deal.service.ts` |
+
+---
+
+### RF-26 · `contact.service.ts` — `deleteContact()` 내 부분 타입 캐스팅
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/services/contact.service.ts` (line 123, `deleteContact()` 내부) |
+| 문제점 | `getAll<{ id: string; contactId: string }>(STORAGE_KEYS.LEADS)` 처럼 인라인 부분 타입 캐스팅 — `Lead` 타입 변경 시 묵시 오류 발생 가능 (RF-19의 구체 인스턴스) |
+| 개선 방향 | `Lead` 타입 import 후 `getAll<Lead>(STORAGE_KEYS.LEADS)`로 교체 |
+| 난이도 | 하 |
+| 영향 범위 | `contact.service.ts` |
+
+---
+
+## 8. 컴포넌트 크기 / 책임 분리
+
+### RF-27 · `deals/[id]/page.tsx` — 844줄 모놀리식 페이지
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/app/deals/[id]/page.tsx` (844줄, state 변수 18개 이상, 서비스 호출 7개 이상) |
+| 문제점 | 7개 탭(딜 편집, 활동, 노트, 이메일, 첨부, 태그, 타임라인)의 상태·로직·JSX가 단일 파일에 혼재 |
+| 개선 방향 | 각 TabsContent를 `src/components/deals/tabs/DealActivitiesTab.tsx` 등 별도 파일로 추출 |
+| 난이도 | 상 |
+| 영향 범위 | `src/app/deals/[id]/page.tsx`, 신규 `src/components/deals/tabs/` 하위 파일들 |
+
+---
+
+### RF-28 · `DealDetail.tsx` — 읽기/편집 모드 혼재 (434줄)
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/components/deals/DealDetail.tsx` (434줄, 필드 레벨 state 변수 12개) |
+| 문제점 | 읽기 뷰와 편집 폼이 하나의 컴포넌트에서 `isEditing` 플래그로 분기되어 복잡도 급증 |
+| 개선 방향 | 편집 모드를 `DealEditForm.tsx`로 추출하고 `DealDetail.tsx`는 읽기 전용 프레젠터로 축소 |
+| 난이도 | 중 |
+| 영향 범위 | `DealDetail.tsx`, 신규 `src/components/deals/DealEditForm.tsx` |
+
+---
+
+### RF-29 · 폼 컴포넌트별 참조 데이터 독립 fetch
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/components/deals/DealForm.tsx`, `src/components/contacts/ContactForm.tsx`, `src/components/companies/CompanyForm.tsx` |
+| 문제점 | 각 폼이 마운트마다 pipelines, stages, members, contacts, companies를 독립적으로 re-fetch — 공유나 캐싱 없음 |
+| 개선 방향 | `src/hooks/useReferenceData.ts` 커스텀 훅 생성 후 공통 조회 로직 통합 |
+| 난이도 | 중 |
+| 영향 범위 | `DealForm.tsx`, `ContactForm.tsx`, `CompanyForm.tsx`, 신규 `src/hooks/useReferenceData.ts` |
+
+---
+
+### RF-30 · `deals/[id]/page.tsx` — 타임라인 `useMemo` 미적용
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/app/deals/[id]/page.tsx` — `getTimelineItems()` 인라인 함수 |
+| 문제점 | 4개 배열(activities, notes, emails, history)을 재조합·정렬하는 연산이 매 렌더마다 재실행 |
+| 개선 방향 | `useMemo(() => getTimelineItems(), [activities, notes, emails, dealHistory])`로 메모이제이션 |
+| 난이도 | 하 |
+| 영향 범위 | `src/app/deals/[id]/page.tsx` |
+
+---
+
+### RF-31 · 폼 유효성 실패 시 사용자 피드백 없음
+
+| 항목 | 내용 |
+|------|------|
+| 대상 | `src/components/deals/DealForm.tsx`, `src/components/contacts/ContactForm.tsx`, `src/components/leads/LeadForm.tsx` 외 다수 |
+| 문제점 | 필수 필드 누락 시 submit 핸들러가 조용히 반환(early return)해 사용자에게 오류 원인 미전달 |
+| 개선 방향 | `errors` 상태 객체 추가 후 각 필드 아래 인라인 오류 메시지 `<p className="text-red-500 text-sm">` 표시 |
+| 난이도 | 중 |
+| 영향 범위 | `DealForm.tsx`, `ContactForm.tsx`, `LeadForm.tsx`, `ActivityForm.tsx` 등 폼 컴포넌트 전체 |
+
+---
+
 ## 우선순위 요약
 
 ### Phase 1 — 데이터 무결성 (즉시 처리 권장)
 
-| ID | 대상 | 난이도 |
-|----|------|--------|
-| RF-05 | `deletePipeline()` 딜 cascade 누락 | 중 |
-| RF-06 | `deleteStage()` 딜 cascade 누락 | 중 |
-| RF-07 | `deleteContact/Company()` attachment cascade 누락 | 중 |
+| ID | 대상 | 난이도 | 상태 |
+|----|------|--------|------|
+| RF-05 | `deletePipeline()` 딜 cascade 누락 | 중 | ✅ 완료 |
+| RF-06 | `deleteStage()` 딜 cascade 누락 | 중 | ✅ 완료 |
+| RF-07 | `deleteContact/Company()` attachment cascade 누락 | 중 | ✅ 완료 |
 
 ### Phase 2 — 아키텍처 위반 수정
 
-| ID | 대상 | 난이도 |
-|----|------|--------|
-| RF-01 | STORAGE_KEYS 이중 정의 제거 | 하 |
-| RF-04 | SettingsForm localStorage 직접 접근 제거 | 하 |
-| RF-02 | `getDeals()` 사이드 이펙트 분리 | 중 |
-| RF-21 | NotificationPanel 렌더 중 쓰기 제거 | 중 |
+| ID | 대상 | 난이도 | 상태 |
+|----|------|--------|------|
+| RF-01 | STORAGE_KEYS 이중 정의 제거 | 하 | ✅ 완료 |
+| RF-04 | SettingsForm localStorage 직접 접근 제거 | 하 | ✅ 완료 |
+| RF-02 | `getDeals()` 사이드 이펙트 분리 | 중 | ✅ 완료 |
+| RF-21 | NotificationPanel 렌더 중 쓰기 제거 | 중 | ✅ 완료 |
 
 ### Phase 3 — 중복 제거 (코드 품질)
 
@@ -333,8 +433,12 @@
 | RF-10 | cascade nullify 패턴 유틸 추출 | 중 |
 | RF-13 | `useListPage` 훅 추출 | 중 |
 | RF-22 | `initSeedData()` 중복 호출 제거 | 하 |
+| RF-24 | `member.service` FK nullify 빈 문자열 수정 | 하 |
+| RF-25 | `lead.service` 딜 생성 서비스 레이어 경유 | 하 |
+| RF-26 | `contact.service` 부분 타입 캐스팅 제거 | 하 |
+| RF-30 | 타임라인 `useMemo` 적용 | 하 |
 
-### Phase 4 — 일관성 / 타입 정리
+### Phase 4 — 일관성 / 타입 정리 / UX
 
 | ID | 대상 | 난이도 |
 |----|------|--------|
@@ -347,3 +451,7 @@
 | RF-14 | report/dashboard 집계 로직 통합 | 중 |
 | RF-03 | 서비스 간 직접 의존 해소 | 중 |
 | RF-23 | Kanban prop drilling 해소 | 중 |
+| RF-27 | `deals/[id]/page.tsx` 탭별 컴포넌트 분리 | 상 |
+| RF-28 | `DealDetail.tsx` 읽기/편집 분리 | 중 |
+| RF-29 | 폼 참조 데이터 공통 훅 추출 | 중 |
+| RF-31 | 폼 유효성 실패 피드백 추가 | 중 |

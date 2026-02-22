@@ -107,3 +107,40 @@
 |---|--------|-----------|
 | W6-4 | **멤버 성과 대시보드** | `reports/page.tsx`, `report.service.ts` |
 | W6-5 | **파이프라인 전환 퍼널** | `reports/page.tsx`, `report.service.ts` |
+
+---
+
+## Wave 7 신규 후보 피처 (N-01 ~ N-14)
+
+> 분석일: 2026-02-22 (Wave 6 완료 기준)
+> Wave 1–6 전체 구현 코드베이스를 영역별 분석하여 발굴한 신규 피처 후보.
+> 기존 제안(CSV 가져오기/내보내기, 일괄 작업, 매출 목표 추적, 커스텀 필드, 대시보드 위젯 커스터마이징, 칸반 수영 레인)은 제외.
+
+### 난이도 하 (5개)
+
+| # | 피처명 | 설명 | 영향 범위 |
+|---|--------|------|-----------|
+| N-01 | **회사 연매출 필드 활성화** | CompanyForm에서 revenue 입력란 추가, 회사 상세에 표시 | `CompanyForm.tsx`, `companies/[id]/page.tsx` |
+| N-02 | **리드 점수 등급 배지 (Cold/Warm/Hot)** | 점수 0–39=Cold, 40–69=Warm, 70–100=Hot 배지를 리드 목록에 추가 | `LeadTable.tsx`, `LeadForm.tsx` |
+| N-03 | **딜 변경 이력 — expectedCloseDate 추적** | 예상 마감일 변경도 DealHistory에 기록 | `types/index.ts`, `deal.service.ts`, `deals/[id]/page.tsx` |
+| N-04 | **활동 생성 시 알림 자동 트리거** | `createActivity()` 후 마감일 오늘~내일이면 자동으로 알림 생성 | `activity.service.ts` (notification.service.ts 호출 추가) |
+| N-05 | **퍼널 리포트 스테이지간 전환율 컬럼** | FunnelReport 테이블에 직전 스테이지 대비 전환율(%) 컬럼 추가 | `FunnelReport.tsx` (report.service.ts 선택적) |
+
+### 난이도 중 (6개)
+
+| # | 피처명 | 설명 | 영향 범위 |
+|---|--------|------|-----------|
+| N-06 | **컨택 상세 타임라인 탭** | 컨택 상세에 활동/노트/이메일 시간순 통합 타임라인 탭 추가 (딜 상세와 동일 UX) | `contacts/[id]/page.tsx`, 신규 `ContactTimeline.tsx` |
+| N-07 | **컨택 중복 병합 워크플로** | 중복 탐지 후 FK 재배치로 두 컨택을 하나로 병합 | `contact.service.ts`, `ContactForm.tsx`, 신규 `MergeContactDialog.tsx` |
+| N-08 | **칸반 WIP 제한** | 스테이지에 WIP 상한 설정, 초과 시 칸반 헤더 경고 색상 표시 | `types/index.ts`, `StageForm.tsx`, `KanbanColumn.tsx`, `stage.service.ts` |
+| N-09 | **활동 캘린더 날짜 클릭 모달** | "+N 더보기" 클릭 시 해당 날짜 전체 활동을 모달로 표시 | `ActivityCalendar.tsx` |
+| N-10 | **이메일 스레드 그룹핑** | 동일 subject 이메일을 스레드로 묶어 대화형 UI 표시 | `EmailList.tsx`, `email.service.ts`, `emails/page.tsx` |
+| N-11 | **리드 전환 소요일 리포트** | 리드 출처별 딜 전환 평균 소요일 + 점수 분포 집계 | `report.service.ts`, 신규 `LeadConversionReport.tsx`, `reports/page.tsx` |
+
+### 난이도 상 (3개)
+
+| # | 피처명 | 설명 | 영향 범위 |
+|---|--------|------|-----------|
+| N-12 | **스테이지 체류 시간 분석** | DealHistory의 stageId 변경 기록으로 스테이지별 평균 체류일 산출 | `history.service.ts`, `report.service.ts`, 신규 `StageResidencyReport.tsx`, `reports/page.tsx` |
+| N-13 | **퍼널 드릴다운 (스테이지 클릭 → 딜 목록)** | 퍼널 바 클릭 시 해당 스테이지의 딜 목록 슬라이드 패널 표시 | `FunnelReport.tsx`, `report.service.ts`, 신규 `DealDrilldownPanel.tsx` |
+| N-14 | **컨택/기업 변경 이력** | DealHistory와 동일 패턴으로 Contact/Company 주요 필드 변경 이력 기록 | `types/index.ts`, `history.service.ts`, `contact.service.ts`, `company.service.ts`, `contacts/[id]/page.tsx` |
