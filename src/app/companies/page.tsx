@@ -19,7 +19,7 @@ import CompanyTable from '@/components/companies/CompanyTable';
 import * as companyService from '@/services/company.service';
 import * as storage from '@/lib/storage';
 import { STORAGE_KEYS } from '@/types/index';
-import type { Company, CompanySize, CompanyFilters, Contact, Deal } from '@/types/index';
+import type { Company, CompanySize, CompanyFilters, Contact, Deal, EntityTag } from '@/types/index';
 
 const SIZE_OPTIONS: { value: CompanySize; label: string }[] = [
   { value: 'small', label: '소기업' },
@@ -79,12 +79,32 @@ export default function CompaniesPage() {
     phone: string;
     address: string;
     revenue: number | null;
+    tagIds?: string[];
   }) {
+    let companyId: string;
     if (editingCompany) {
       companyService.updateCompany(editingCompany.id, data);
+      companyId = editingCompany.id;
     } else {
-      companyService.createCompany(data);
+      const created = companyService.createCompany(data);
+      companyId = created.id;
     }
+
+    // Sync entity tags for this company
+    if (data.tagIds) {
+      const allEntityTags = storage.getAll<EntityTag>(STORAGE_KEYS.ENTITY_TAGS);
+      const otherTags = allEntityTags.filter(
+        (et) => !(et.entityType === 'company' && et.entityId === companyId),
+      );
+      const newTags = data.tagIds.map((tagId) => ({
+        id: crypto.randomUUID(),
+        entityType: 'company' as const,
+        entityId: companyId,
+        tagId,
+      }));
+      storage.save(STORAGE_KEYS.ENTITY_TAGS, [...otherTags, ...newTags]);
+    }
+
     setFormOpen(false);
     setEditingCompany(null);
     loadData();

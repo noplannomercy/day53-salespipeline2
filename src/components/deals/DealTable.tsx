@@ -11,6 +11,7 @@ interface DealTableProps {
   data: Deal[];
   onEdit: (deal: Deal) => void;
   onDelete: (deal: Deal) => void;
+  onClone?: (deal: Deal) => void;
 }
 
 const columns: ColumnDef<Deal>[] = [
@@ -69,13 +70,14 @@ const columns: ColumnDef<Deal>[] = [
   },
 ];
 
-export default function DealTable({ data, onEdit, onDelete }: DealTableProps) {
+export default function DealTable({ data, onEdit, onDelete, onClone }: DealTableProps) {
   return (
     <DataTable
       columns={columns}
       data={data}
       onEdit={onEdit}
       onDelete={onDelete}
+      onClone={onClone}
       emptyMessage="등록된 딜이 없습니다."
     />
   );

@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import TagAutocomplete from '@/components/common/TagAutocomplete';
 import type {
   Deal,
   DealCurrency,
@@ -20,10 +21,12 @@ import type {
   Pipeline,
   Stage,
   Member,
+  EntityTag,
 } from '@/types/index';
 import { STORAGE_KEYS } from '@/types/index';
 import * as storage from '@/lib/storage';
 import * as dealService from '@/services/deal.service';
+import { getEntityTags } from '@/services/tag.service';
 
 interface DealFormProps {
   editId: string | null;
@@ -54,6 +57,7 @@ export default function DealForm({ editId, onClose, onSaved }: DealFormProps) {
   const [expectedCloseDate, setExpectedCloseDate] = useState('');
   const [priority, setPriority] = useState<DealPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -85,6 +89,10 @@ export default function DealForm({ editId, onClose, onSaved }: DealFormProps) {
         );
         setPriority(deal.priority);
         setAssignedTo(deal.assignedTo);
+
+        // Load existing tags
+        const dealTags = getEntityTags('deal', editId);
+        setSelectedTagIds(dealTags.map((t) => t.id));
       }
     }
   }, [editId]);
@@ -132,11 +140,27 @@ export default function DealForm({ editId, onClose, onSaved }: DealFormProps) {
       assignedTo,
     };
 
+    let dealId: string;
     if (editId) {
       dealService.updateDeal(editId, data);
+      dealId = editId;
     } else {
-      dealService.createDeal(data);
+      const created = dealService.createDeal(data);
+      dealId = created.id;
     }
+
+    // Sync entity tags for this deal
+    const allEntityTags = storage.getAll<EntityTag>(STORAGE_KEYS.ENTITY_TAGS);
+    const otherTags = allEntityTags.filter(
+      (et) => !(et.entityType === 'deal' && et.entityId === dealId),
+    );
+    const newTags = selectedTagIds.map((tagId) => ({
+      id: crypto.randomUUID(),
+      entityType: 'deal' as const,
+      entityId: dealId,
+      tagId,
+    }));
+    storage.save(STORAGE_KEYS.ENTITY_TAGS, [...otherTags, ...newTags]);
 
     onSaved();
     onClose();
@@ -308,6 +332,15 @@ export default function DealForm({ editId, onClose, onSaved }: DealFormProps) {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Tags */}
+      <div className="flex flex-col gap-2">
+        <Label>태그</Label>
+        <TagAutocomplete
+          selectedTagIds={selectedTagIds}
+          onChange={setSelectedTagIds}
+        />
       </div>
 
       {/* Actions */}

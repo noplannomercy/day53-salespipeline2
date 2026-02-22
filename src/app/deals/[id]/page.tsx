@@ -24,6 +24,8 @@ import {
   Paperclip,
   TagIcon,
   Clock,
+  Copy,
+  GitCompare,
 } from 'lucide-react';
 import StatusBadge from '@/components/common/StatusBadge';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -37,6 +39,7 @@ import EmailList from '@/components/emails/EmailList';
 import EmailForm from '@/components/emails/EmailForm';
 import type {
   DealWithRelations,
+  DealHistory,
   Stage,
   Activity,
   Note,
@@ -55,6 +58,7 @@ import * as noteService from '@/services/note.service';
 import * as emailService from '@/services/email.service';
 import * as attachmentService from '@/services/attachment.service';
 import * as tagService from '@/services/tag.service';
+import * as historyService from '@/services/history.service';
 
 /**
  * Deal detail page with StageProgress bar and 7-tab layout.
@@ -95,6 +99,9 @@ export default function DealDetailPage() {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [selectedTagId, setSelectedTagId] = useState('');
 
+  // History state
+  const [dealHistoryItems, setDealHistoryItems] = useState<DealHistory[]>([]);
+
   const loadData = useCallback(() => {
     const data = dealService.getDealById(dealId);
     setDeal(data);
@@ -109,6 +116,7 @@ export default function DealDetailPage() {
     setAttachments(attachmentService.getAttachments({ entityType: 'deal', entityId: dealId }));
     setDealTags(tagService.getEntityTags('deal', dealId));
     setAllTags(tagService.getTags());
+    setDealHistoryItems(historyService.getDealHistory(dealId));
   }, [dealId]);
 
   useEffect(() => {
@@ -234,9 +242,18 @@ export default function DealDetailPage() {
 
   // ─── Timeline ────────────────────────────────
 
+  const FIELD_LABELS: Record<string, string> = {
+    stageId: '스테이지',
+    value: '금액',
+    assignedTo: '담당자',
+    status: '상태',
+    priority: '우선도',
+    title: '제목',
+  };
+
   type TimelineItem = {
     id: string;
-    type: 'activity' | 'note' | 'email';
+    type: 'activity' | 'note' | 'email' | 'history';
     title: string;
     description: string;
     createdAt: string;
@@ -272,6 +289,17 @@ export default function DealDetailPage() {
         title: e.subject,
         description: `To: ${e.to} (${e.status})`,
         createdAt: e.sentAt ?? e.createdAt,
+      });
+    }
+
+    for (const h of dealHistoryItems) {
+      const fieldLabel = FIELD_LABELS[h.field] || h.field;
+      items.push({
+        id: h.id,
+        type: 'history',
+        title: `${fieldLabel} 변경`,
+        description: `${h.oldValue || '(없음)'} → ${h.newValue || '(없음)'}`,
+        createdAt: h.createdAt,
       });
     }
 
@@ -312,6 +340,17 @@ export default function DealDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              dealService.cloneDeal(deal.id);
+              router.push('/deals');
+            }}
+          >
+            <Copy className="mr-1 h-4 w-4" />
+            복제
+          </Button>
           {deal.status === 'open' ? (
             <>
               <Button
@@ -692,12 +731,14 @@ export default function DealDetailPage() {
                   activity: '활동',
                   note: '노트',
                   email: '이메일',
+                  history: '변경',
                 };
 
                 const TYPE_COLORS: Record<string, string> = {
                   activity: 'bg-blue-500',
                   note: 'bg-yellow-500',
                   email: 'bg-green-500',
+                  history: 'bg-purple-500',
                 };
 
                 return (

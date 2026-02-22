@@ -35,6 +35,10 @@ export type ReportType = 'pipeline' | 'sales' | 'activity' | 'forecast';
 
 export type SortDirection = 'asc' | 'desc';
 
+export type NotificationType = 'activity_due' | 'deal_status_changed' | 'deal_assigned';
+
+export type DealHistoryField = 'stageId' | 'value' | 'assignedTo' | 'status' | 'priority' | 'title';
+
 // ─────────────────────────────────────────────
 // 엔티티 인터페이스 (14개)
 // ─────────────────────────────────────────────
@@ -273,6 +277,31 @@ export interface AppSettings {
   darkMode: boolean;
 }
 
+/** 딜 변경 이력 — 딜의 주요 필드 변경 시 자동 기록 */
+export interface DealHistory {
+  id: string;
+  /** FK → Deal.id */
+  dealId: string;
+  field: DealHistoryField;
+  oldValue: string;
+  newValue: string;
+  /** FK → Member.id */
+  changedBy: string;
+  createdAt: string;
+}
+
+/** 알림 — 활동 마감, 딜 상태 변경, 딜 담당자 배정 등 */
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  entityType: 'activity' | 'deal';
+  entityId: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 // ─────────────────────────────────────────────
 // 관계 포함 타입 (서비스 레이어 JOIN 결과)
 // ─────────────────────────────────────────────
@@ -430,6 +459,8 @@ export const STORAGE_KEYS = {
   MEMBERS: 'sp_members',
   REPORTS: 'sp_reports',
   SETTINGS: 'sp_settings',
+  DEAL_HISTORY: 'sp_deal_history',
+  NOTIFICATIONS: 'sp_notifications',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

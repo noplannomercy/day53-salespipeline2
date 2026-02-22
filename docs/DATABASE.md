@@ -21,6 +21,8 @@
 | `sp_members` | Member | `Member[]` |
 | `sp_reports` | Report | `Report[]` |
 | `sp_settings` | AppSettings | `AppSettings` (객체) |
+| `sp_deal_history` | DealHistory | `DealHistory[]` |
+| `sp_notifications` | Notification | `Notification[]` |
 
 ---
 
@@ -64,6 +66,12 @@ erDiagram
     Note }o--|| Member : "created by"
     Attachment }o--|| Member : "uploaded by"
     Report }o--|| Member : "created by"
+
+    Deal ||--o{ DealHistory : "tracks changes"
+    DealHistory }o--|| Member : "changed by"
+
+    Activity ||--o{ Notification : "triggers"
+    Deal ||--o{ Notification : "triggers"
 
     Pipeline {
         string id PK
@@ -397,6 +405,29 @@ erDiagram
 | defaultCurrency | `'KRW'│'USD'` | 기본 통화 |
 | darkMode | boolean | 다크모드 활성화 여부 |
 
+### DealHistory [Wave 5]
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| id | string | ✓ | UUID (auto) |
+| dealId | string | ✓ | FK → Deal.id |
+| field | `'stageId'│'value'│'assignedTo'│'status'│'priority'│'title'` | ✓ | 변경된 필드명 |
+| oldValue | string | ✓ | 변경 전 값 (문자열 직렬화) |
+| newValue | string | ✓ | 변경 후 값 (문자열 직렬화) |
+| changedBy | string | ✓ | FK → Member.id |
+| createdAt | string | ✓ | ISO 8601 |
+
+### Notification [Wave 5]
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| id | string | ✓ | UUID (auto) |
+| type | `'activity_due'│'deal_status_changed'│'deal_assigned'` | ✓ | 알림 유형 |
+| title | string | ✓ | 알림 제목 |
+| body | string | ✓ | 알림 본문 |
+| entityType | `'activity'│'deal'` | ✓ | 연결 엔티티 종류 |
+| entityId | string | ✓ | 연결 엔티티 ID |
+| isRead | boolean | ✓ | 읽음 여부 |
+| createdAt | string | ✓ | ISO 8601 |
+
 ---
 
 ## 관계 처리 방식
@@ -424,9 +455,10 @@ localStorage는 cascade delete 없으므로 서비스 레이어에서 명시적�
 | Pipeline 삭제 | 소속 Stage 삭제 → 해당 Stage의 Deal.stageId 처리 |
 | Company 삭제 | Contact.companyId → null, 연결 Deal.companyId → null |
 | Contact 삭제 | 연결된 Lead, Deal, Activity, Note, Email 삭제 |
-| Deal 삭제 | 연결된 Activity, Note, Email, Attachment, EntityTag 삭제 |
+| Deal 삭제 | 연결된 Activity, Note, Email, Attachment, EntityTag, **DealHistory** 삭제 |
 | Tag 삭제 | 관련 EntityTag 레코드 전체 삭제 |
 | Member 삭제 | 담당 딜/리드/활동의 assignedTo → null 처리 |
+| Activity 삭제 | 연결된 **Notification** (entityType='activity') 삭제 |
 
 ### 다대다 관계 (EntityTag)
 - 추가: EntityTag 레코드 생성 (`{entityType, entityId, tagId}`)

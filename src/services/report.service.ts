@@ -207,6 +207,63 @@ export function getForecastData(): ForecastDatum[] {
     });
 }
 
+// ─────────────────────────────────────────────
+// Weighted pipeline value
+// ─────────────────────────────────────────────
+
+export interface WeightedStageData {
+  stageId: string;
+  stageName: string;
+  stageColor: string;
+  probability: number;
+  rawValue: number;
+  weightedValue: number;
+  dealCount: number;
+}
+
+/**
+ * Calculate weighted pipeline value per stage.
+ * For each stage, rawValue is the sum of open deal values,
+ * and weightedValue = rawValue * (probability / 100).
+ * If pipelineId is not provided, uses the default pipeline.
+ */
+export function getWeightedPipelineValue(pipelineId?: string): WeightedStageData[] {
+  const pipelines = storage.getAll<Pipeline>(STORAGE_KEYS.PIPELINES);
+  const resolvedPipelineId =
+    pipelineId ?? pipelines.find((p) => p.isDefault)?.id ?? pipelines[0]?.id;
+  if (!resolvedPipelineId) return [];
+
+  const stages = storage.getAll<Stage>(STORAGE_KEYS.STAGES);
+  const pipelineStages = stages
+    .filter((s) => s.pipelineId === resolvedPipelineId)
+    .sort((a, b) => a.order - b.order);
+
+  const deals = storage.getAll<Deal>(STORAGE_KEYS.DEALS);
+
+  const stageStats = new Map<string, { rawValue: number; dealCount: number }>();
+  for (const deal of deals) {
+    if (deal.status !== 'open') continue;
+    if (deal.pipelineId !== resolvedPipelineId) continue;
+    const existing = stageStats.get(deal.stageId) ?? { rawValue: 0, dealCount: 0 };
+    existing.rawValue += deal.value;
+    existing.dealCount += 1;
+    stageStats.set(deal.stageId, existing);
+  }
+
+  return pipelineStages.map((stage) => {
+    const stat = stageStats.get(stage.id) ?? { rawValue: 0, dealCount: 0 };
+    return {
+      stageId: stage.id,
+      stageName: stage.name,
+      stageColor: stage.color,
+      probability: stage.probability,
+      rawValue: stat.rawValue,
+      weightedValue: Math.round((stat.rawValue * stage.probability) / 100),
+      dealCount: stat.dealCount,
+    };
+  });
+}
+
 export interface LeadSourceStat {
   source: string;
   count: number;

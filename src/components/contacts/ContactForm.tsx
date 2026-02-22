@@ -11,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Contact, Company, Tag, EntityTag } from '@/types/index';
+import TagAutocomplete from '@/components/common/TagAutocomplete';
+import type { Contact, Company, EntityTag } from '@/types/index';
 import { STORAGE_KEYS } from '@/types/index';
 import * as storage from '@/lib/storage';
 import * as contactService from '@/services/contact.service';
@@ -30,13 +31,12 @@ export default function ContactForm({ editId, onClose, onSaved }: ContactFormPro
   const [position, setPosition] = useState('');
   const [avatar, setAvatar] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [duplicateWarning, setDuplicateWarning] = useState('');
 
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
 
   useEffect(() => {
     setCompanies(storage.getAll<Company>(STORAGE_KEYS.COMPANIES));
-    setTags(storage.getAll<Tag>(STORAGE_KEYS.TAGS));
 
     if (editId) {
       const contact = contactService.getContactById(editId);
@@ -55,12 +55,20 @@ export default function ContactForm({ editId, onClose, onSaved }: ContactFormPro
     }
   }, [editId]);
 
-  function toggleTag(tagId: string) {
-    setSelectedTagIds((prev) =>
-      prev.includes(tagId)
-        ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId],
+  function checkDuplicates(checkEmail: string, checkPhone: string) {
+    const dupes = contactService.findDuplicates(
+      checkEmail,
+      checkPhone,
+      editId ?? undefined,
     );
+    if (dupes.length > 0) {
+      const names = dupes.map((c) => c.name).join(', ');
+      setDuplicateWarning(
+        `동일한 이메일/전화번호의 연락처가 있습니다: ${names}`,
+      );
+    } else {
+      setDuplicateWarning('');
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -124,6 +132,7 @@ export default function ContactForm({ editId, onClose, onSaved }: ContactFormPro
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => checkDuplicates(email, phone)}
           placeholder="email@example.com"
           required
         />
@@ -135,9 +144,16 @@ export default function ContactForm({ editId, onClose, onSaved }: ContactFormPro
           id="contact-phone"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+          onBlur={() => checkDuplicates(email, phone)}
           placeholder="010-0000-0000"
         />
       </div>
+
+      {duplicateWarning && (
+        <p className="text-sm text-amber-600 dark:text-amber-400">
+          {duplicateWarning}
+        </p>
+      )}
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="contact-company">소속 회사</Label>
@@ -169,32 +185,13 @@ export default function ContactForm({ editId, onClose, onSaved }: ContactFormPro
         />
       </div>
 
-      {tags.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <Label>태그</Label>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => toggleTag(tag.id)}
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                  selectedTagIds.includes(tag.id)
-                    ? 'border-transparent text-white'
-                    : 'border-border text-muted-foreground hover:bg-muted'
-                }`}
-                style={
-                  selectedTagIds.includes(tag.id)
-                    ? { backgroundColor: tag.color }
-                    : undefined
-                }
-              >
-                {tag.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="flex flex-col gap-2">
+        <Label>태그</Label>
+        <TagAutocomplete
+          selectedTagIds={selectedTagIds}
+          onChange={setSelectedTagIds}
+        />
+      </div>
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose}>

@@ -46,3 +46,4 @@ npm run lint      # ESLint 검사
 - `docs/DATABASE.md` — 엔티티 정의, ERD, localStorage 키 규칙
 - `docs/UI-DESIGN.md` — 페이지 레이아웃, 컴포넌트 목록, UI 패턴
 - `docs/IMPLEMENTATION.md` — Wave별 구현 계획 및 태스크 분해
+- `docs/FEATURE-DISCOVERY.md` — Wave 5 확정 피처 목록 (W5-1 ~ W5-8)

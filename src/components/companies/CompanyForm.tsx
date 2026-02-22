@@ -11,7 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import TagAutocomplete from '@/components/common/TagAutocomplete';
 import type { Company, CompanySize } from '@/types/index';
+import { getEntityTags } from '@/services/tag.service';
 
 const SIZE_OPTIONS: { value: CompanySize; label: string }[] = [
   { value: 'small', label: '소기업' },
@@ -30,6 +32,7 @@ interface CompanyFormProps {
     phone: string;
     address: string;
     revenue: number | null;
+    tagIds?: string[];
   }) => void;
   onCancel: () => void;
 }
@@ -45,6 +48,7 @@ export default function CompanyForm({
   const [website, setWebsite] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (company) {
@@ -54,6 +58,10 @@ export default function CompanyForm({
       setWebsite(company.website);
       setPhone(company.phone);
       setAddress(company.address);
+
+      // Load existing tags for this company
+      const companyTags = getEntityTags('company', company.id);
+      setSelectedTagIds(companyTags.map((t) => t.id));
     } else {
       setName('');
       setIndustry('');
@@ -61,6 +69,7 @@ export default function CompanyForm({
       setWebsite('');
       setPhone('');
       setAddress('');
+      setSelectedTagIds([]);
     }
   }, [company]);
 
@@ -76,6 +85,7 @@ export default function CompanyForm({
       phone: phone.trim(),
       address: address.trim(),
       revenue: null,
+      tagIds: selectedTagIds,
     });
   }
 
@@ -149,6 +159,14 @@ export default function CompanyForm({
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="서울특별시 강남구 ..."
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>태그</Label>
+        <TagAutocomplete
+          selectedTagIds={selectedTagIds}
+          onChange={setSelectedTagIds}
         />
       </div>
 

@@ -25,6 +25,8 @@ interface DataTableProps<TRow extends { id: string }> {
   pageSize?: number;
   /** Message shown when data is empty. */
   emptyMessage?: string;
+  /** Called when a row's "복제" button is clicked. */
+  onClone?: (row: TRow) => void;
 }
 
 interface SortState {
@@ -40,6 +42,7 @@ export default function DataTable<TRow extends { id: string }>({
   onRowClick,
   pageSize = 10,
   emptyMessage = '데이터가 없습니다.',
+  onClone,
 }: DataTableProps<TRow>) {
   const [sort, setSort] = useState<SortState | null>(null);
   const [page, setPage] = useState(1);
@@ -77,7 +80,7 @@ export default function DataTable<TRow extends { id: string }>({
       : <ChevronDown className="ml-1 h-3.5 w-3.5" />;
   }
 
-  const hasActions = Boolean(onEdit || onDelete);
+  const hasActions = Boolean(onEdit || onDelete || onClone);
 
   if (data.length === 0) {
     return <EmptyState message={emptyMessage} />;
@@ -137,6 +140,18 @@ export default function DataTable<TRow extends { id: string }>({
                         }}
                       >
                         편집
+                      </Button>
+                    )}
+                    {onClone && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onClone(row);
+                        }}
+                      >
+                        복제
                       </Button>
                     )}
                     {onDelete && (

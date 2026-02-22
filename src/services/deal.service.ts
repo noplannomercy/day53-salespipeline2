@@ -6,6 +6,7 @@ import type {
   Deal,
   DealFilters,
   DealWithRelations,
+  DealHistoryField,
   Contact,
   Company,
   Stage,
@@ -16,6 +17,7 @@ import type {
   Email,
   Attachment,
 } from '@/types/index';
+import * as historyService from '@/services/history.service';
 
 const KEY = STORAGE_KEYS.DEALS;
 
@@ -129,14 +131,40 @@ export function createDeal(data: CreateDealInput): Deal {
   return storage.create<Deal>(KEY, data);
 }
 
+/** Fields tracked for deal change history */
+const TRACKED_FIELDS: DealHistoryField[] = [
+  'title',
+  'value',
+  'assignedTo',
+  'status',
+  'priority',
+  'stageId',
+];
+
 /**
  * Partially update an existing deal.
+ * Records history entries for tracked fields that changed.
  * Returns the updated deal, or null if not found.
  */
 export function updateDeal(
   id: string,
   data: Partial<Omit<Deal, 'id' | 'createdAt' | 'updatedAt'>>,
 ): Deal | null {
+  const existing = storage.getById<Deal>(KEY, id);
+  if (!existing) return null;
+
+  const changedBy = historyService.getDefaultChangedBy();
+
+  for (const field of TRACKED_FIELDS) {
+    if (field in data) {
+      const oldVal = String(existing[field] ?? '');
+      const newVal = String((data as Record<string, unknown>)[field] ?? '');
+      if (oldVal !== newVal) {
+        historyService.addHistory(id, field, oldVal, newVal, changedBy);
+      }
+    }
+  }
+
   return storage.update<Deal>(KEY, id, data);
 }
 
@@ -197,6 +225,9 @@ export function deleteDeal(id: string): void {
     storage.save(STORAGE_KEYS.ATTACHMENTS, remainingAttachments);
   }
 
+  // Cascade delete deal history
+  historyService.deleteDealHistory(id);
+
   storage.remove(KEY, id);
 }
 
@@ -208,6 +239,12 @@ export function moveDealToStage(dealId: string, stageId: string): Deal {
   const deal = storage.getById<Deal>(KEY, dealId);
   if (!deal) {
     throw new Error(`Deal "${dealId}" not found`);
+  }
+
+  // Record stage change history
+  if (deal.stageId !== stageId) {
+    const changedBy = historyService.getDefaultChangedBy();
+    historyService.addHistory(dealId, 'stageId', deal.stageId, stageId, changedBy);
   }
 
   // Resolve the target stage to update pipelineId if the stage belongs to a different pipeline
@@ -241,6 +278,12 @@ export function closeDeal(
     throw new Error(`Deal "${dealId}" not found`);
   }
 
+  // Record status change history
+  if (deal.status !== outcome) {
+    const changedBy = historyService.getDefaultChangedBy();
+    historyService.addHistory(dealId, 'status', deal.status, outcome, changedBy);
+  }
+
   const updated = storage.update<Deal>(KEY, dealId, {
     status: outcome,
     lostReason: outcome === 'lost' ? (lostReason ?? '') : '',
@@ -251,6 +294,36 @@ export function closeDeal(
   }
 
   return updated;
+}
+
+/**
+ * Clone an existing deal.
+ * Copies all domain fields, appends " (복사본)" to the title,
+ * resets status to 'open', and creates a new record with fresh timestamps.
+ * Returns the newly created deal.
+ */
+export function cloneDeal(id: string): Deal {
+  const original = storage.getById<Deal>(KEY, id);
+  if (!original) {
+    throw new Error(`Deal "${id}" not found`);
+  }
+
+  const cloneData: Omit<Deal, 'id' | 'createdAt' | 'updatedAt'> = {
+    pipelineId: original.pipelineId,
+    stageId: original.stageId,
+    contactId: original.contactId,
+    companyId: original.companyId,
+    title: original.title + ' (복사본)',
+    value: original.value,
+    currency: original.currency,
+    expectedCloseDate: original.expectedCloseDate,
+    priority: original.priority,
+    status: 'open',
+    lostReason: '',
+    assignedTo: original.assignedTo,
+  };
+
+  return storage.create<Deal>(KEY, cloneData);
 }
 
 /**

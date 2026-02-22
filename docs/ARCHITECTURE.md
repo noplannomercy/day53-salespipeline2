@@ -28,8 +28,9 @@ src/
 │   └── settings/page.tsx
 │
 ├── components/
-│   ├── layout/                   # AppLayout, Sidebar, Header
+│   ├── layout/                   # AppLayout, Sidebar, Header (Header: Wave 5에서 NotificationPanel 연결)
 │   ├── common/                   # 도메인 무관 재사용 컴포넌트
+│   │                             #   [Wave 5 추가] TagAutocomplete, NotificationPanel
 │   ├── pipelines/
 │   ├── kanban/
 │   ├── deals/
@@ -58,7 +59,10 @@ src/
 │   ├── attachment.service.ts
 │   ├── member.service.ts
 │   ├── report.service.ts
-│   └── dashboard.service.ts
+│   ├── dashboard.service.ts
+│   ├── backup.service.ts         # [Wave 5] 전체 데이터 내보내기/가져오기
+│   ├── notification.service.ts   # [Wave 5] 알림 생성/조회/읽음 처리
+│   └── history.service.ts        # [Wave 5] 딜 변경 이력 기록/조회
 │
 ├── lib/
 │   ├── storage.ts                # localStorage 추상화
@@ -132,6 +136,7 @@ app/layout.tsx
     ├── Header
     │   ├── 페이지 제목
     │   ├── 검색바 (UI만)
+    │   ├── 벨 아이콘 + 미읽음 뱃지 → NotificationPanel [Wave 5]
     │   └── MemberAvatar (현재 사용자)
     └── <children> (각 page.tsx)
         │

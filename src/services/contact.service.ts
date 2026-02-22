@@ -181,3 +181,30 @@ export function getContactCompanyName(companyId: string | null): string {
   const company = storage.getById<Company>(STORAGE_KEYS.COMPANIES, companyId);
   return company?.name ?? '-';
 }
+
+/**
+ * Find contacts whose email or phone matches the given values.
+ * Useful for duplicate detection in ContactForm.
+ * When currentId is provided the contact with that ID is excluded from results
+ * (so the form doesn't flag the record being edited as a duplicate).
+ */
+export function findDuplicates(
+  email: string,
+  phone: string,
+  currentId?: string,
+): Contact[] {
+  const normalEmail = email.trim().toLowerCase();
+  const normalPhone = phone.trim();
+
+  if (!normalEmail && !normalPhone) return [];
+
+  const all = storage.getAll<Contact>(KEY);
+  return all.filter((c) => {
+    if (currentId && c.id === currentId) return false;
+
+    if (normalEmail && c.email.toLowerCase() === normalEmail) return true;
+    if (normalPhone && c.phone && c.phone === normalPhone) return true;
+
+    return false;
+  });
+}

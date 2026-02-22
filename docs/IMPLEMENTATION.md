@@ -236,3 +236,87 @@ Wave 3에서 placeholder로 두었던 딜 상세 탭을 Wave 4 서비스 완성 
 | Wave 3 | 5개 | 14개 |
 | Wave 4 | 6개 | 31개 |
 | **합계** | **22개** | **87개** |
+
+---
+
+## Wave 5 — 피처 확장
+
+> 참고: `docs/FEATURE-DISCOVERY.md` — 구현 확정 피처 W5-1 ~ W5-8
+
+### 생성/수정 파일 목록
+
+| 파일 | 역할 | 구분 |
+|------|------|------|
+| `src/types/index.ts` | `DealHistory`, `Notification` 타입 + `STORAGE_KEYS` 2개 추가 | 수정 |
+| `src/services/backup.service.ts` | `exportData()`, `importData()` — 전체 localStorage JSON 직렬화/복원 | 신규 |
+| `src/services/notification.service.ts` | `generateNotifications()`, `markAsRead()`, `getUnreadCount()` | 신규 |
+| `src/services/history.service.ts` | `addHistory()`, `getDealHistory()` — 딜 필드 변경 이력 기록/조회 | 신규 |
+| `src/services/deal.service.ts` | `cloneDeal()` 추가, `updateDeal`/`moveDealToStage`/`closeDeal`에 이력 기록 연동 | 수정 |
+| `src/services/contact.service.ts` | `findDuplicates(email, phone)` 추가 | 수정 |
+| `src/services/report.service.ts` | `getWeightedPipelineValue()` 추가 (Stage.probability × Deal.value) | 수정 |
+| `components/common/TagAutocomplete.tsx` | 기존 태그 목록 기반 인라인 자동완성 입력 컴포넌트 | 신규 |
+| `components/common/NotificationPanel.tsx` | 알림 목록 패널 (읽음/안읽음, 엔티티 링크) | 신규 |
+| `components/layout/Header.tsx` | 벨 아이콘 + 미읽음 뱃지 + `NotificationPanel` 연결 | 수정 |
+| `components/deals/DealTable.tsx` | 행 메뉴에 "복제" 액션 추가 | 수정 |
+| `components/deals/DealDetail.tsx` | 복제 버튼 추가, 타임라인 탭에 `DealHistory` 포함 | 수정 |
+| `components/kanban/KanbanColumn.tsx` | 컬럼 하단 + 버튼으로 해당 스테이지에 딜 인라인 추가 | 수정 |
+| `components/kanban/KanbanBoard.tsx` | `createDeal` 핸들러를 `KanbanColumn`으로 전달 | 수정 |
+| `components/contacts/ContactForm.tsx` | 이메일/전화 입력 blur 시 중복 탐지 + 경고 UI | 수정 |
+| `components/deals/DealForm.tsx` | 태그 입력을 `TagAutocomplete`로 교체 | 수정 |
+| `components/contacts/ContactForm.tsx` | 태그 입력을 `TagAutocomplete`로 교체 | 수정 |
+| `components/companies/CompanyForm.tsx` | 태그 입력을 `TagAutocomplete`로 교체 | 수정 |
+| `components/settings/SettingsForm.tsx` | 데이터 내보내기/가져오기 버튼 추가 | 수정 |
+| `components/dashboard/ForecastChart.tsx` | 가중 파이프라인 가치(확률 × 금액) 반영 | 수정 |
+| `components/reports/ForecastReport.tsx` | 가중 계산 표시 방식 업데이트 | 수정 |
+
+### 의존성
+
+- Wave 1–4 완료 필요
+- `T5-4` (types 확장) 완료 후 → `T5-5`, `T5-6` 진행
+- `T5-1`, `T5-2`, `T5-3`, `T5-7`은 상호 독립 (병렬 가능)
+
+### 태스크 분해
+
+| # | 태스크 | 생성/수정 파일 | 병렬 그룹 |
+|---|--------|---------------|-----------|
+| T5-1 | **딜 복제 + 칸반 인라인 딜 추가** | `deal.service.ts`, `DealTable`, `DealDetail`, `KanbanColumn`, `KanbanBoard` | 1단계 |
+| T5-2 | **데이터 백업/복원 + 태그 자동완성** | 새 `backup.service.ts`, `SettingsForm`, 새 `TagAutocomplete`, `DealForm`, `ContactForm`, `CompanyForm` | 1단계 |
+| T5-3 | **가중 파이프라인 가치** | `report.service.ts`, `ForecastChart`, `ForecastReport` | 1단계 |
+| T5-4 | **types/index.ts 확장** | `types/index.ts` (`DealHistory`, `Notification` 타입 + `STORAGE_KEYS` 추가) | 1단계 완료 후 |
+| T5-5 | **딜 변경 이력** | 새 `history.service.ts`, `deal.service.ts` (이력 기록 추가), `DealDetail` | T5-4 이후 |
+| T5-6 | **알림 패널** | 새 `notification.service.ts`, 새 `NotificationPanel`, `Header` | T5-4 이후, T5-5와 병렬 |
+| T5-7 | **컨택 중복 탐지** | `contact.service.ts`, `ContactForm` | 1단계 (T5-2와 `ContactForm` 충돌 주의) |
+
+**병렬 실행 전략:**
+```
+1단계 (병렬): T5-1 / T5-2 / T5-3 / T5-7  ← ContactForm은 T5-2와 T5-7이 동시 수정하므로 한 태스크로 통합 처리
+2단계 (순차): T5-4 (types 확장)
+3단계 (병렬): T5-5 / T5-6
+```
+
+> ⚠️ `ContactForm.tsx`는 T5-2(TagAutocomplete)와 T5-7(중복 탐지) 양쪽에서 수정됨. 동일 담당자에게 배정하거나 T5-7을 T5-2에 통합.
+
+---
+
+## 서비스 함수 총계 (Wave 5 포함)
+
+| Wave | 서비스 파일 | 함수 수 |
+|------|------------|---------|
+| Wave 2 | pipeline, stage, company, contact, lead, member | 27개 |
+| Wave 3 | deal | 7개 |
+| Wave 4 | activity, note, tag, email, attachment, report, dashboard | 22개 |
+| Wave 5 | deal(+2), contact(+1), report(+1), 신규 backup/notification/history | +10개 |
+| **합계** | **16개 서비스** | **~66개** |
+
+---
+
+## 전체 태스크 요약 (Wave 5 포함)
+
+| Wave | 태스크 수 | 파일 수 |
+|------|----------|---------|
+| Wave 1 | 6개 | 17개 |
+| Wave 2 | 5개 | 25개 |
+| Wave 3 | 5개 | 14개 |
+| Wave 4 | 6개 | 31개 |
+| Wave 5 | 7개 | 21개 |
+| **합계** | **29개** | **108개** |

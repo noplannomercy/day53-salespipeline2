@@ -121,6 +121,10 @@ export default function DealsPage() {
         data={deals}
         onEdit={handleEdit}
         onDelete={setDeleteTarget}
+        onClone={(deal) => {
+          dealService.cloneDeal(deal.id);
+          loadData();
+        }}
       />
 
       {/* Create / Edit Modal */}

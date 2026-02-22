@@ -340,7 +340,7 @@ test.describe('Dashboard 로드', () => {
     // KPI card titles visible
     await expect(page.getByText('진행 중 딜')).toBeVisible();
     await expect(page.getByText('이번 달 성사')).toBeVisible();
-    await expect(page.getByText('매출 예측')).toBeVisible();
+    await expect(page.getByText('이번 달 실패')).toBeVisible();
     await expect(page.getByText('이번 주 활동')).toBeVisible();
   });
 

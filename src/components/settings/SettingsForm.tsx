@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -11,10 +11,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Download, Upload } from 'lucide-react';
 import type { AppSettings, Pipeline, DealCurrency } from '@/types/index';
 import { STORAGE_KEYS } from '@/types/index';
 import * as storage from '@/lib/storage';
 import * as pipelineService from '@/services/pipeline.service';
+import * as backupService from '@/services/backup.service';
 
 interface SettingsFormProps {
   onSaved: () => void;
@@ -35,6 +37,8 @@ export default function SettingsForm({ onSaved }: SettingsFormProps) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [importMessage, setImportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPipelines(pipelineService.getPipelines());
@@ -70,6 +74,47 @@ export default function SettingsForm({ onSaved }: SettingsFormProps) {
 
     // Reload the page to re-seed default data
     window.location.reload();
+  }
+
+  function handleExport() {
+    const json = backupService.exportData();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `salespipe-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = event.target?.result as string;
+        backupService.importData(json);
+        setImportMessage({ type: 'success', text: '데이터를 성공적으로 가져왔습니다. 페이지를 새로고침합니다.' });
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        setImportMessage({
+          type: 'error',
+          text: err instanceof Error ? err.message : '데이터 가져오기에 실패했습니다.',
+        });
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset the input so re-selecting the same file triggers onChange
+    e.target.value = '';
   }
 
   return (
@@ -157,6 +202,46 @@ export default function SettingsForm({ onSaved }: SettingsFormProps) {
           <div className="pt-2">
             <Button onClick={handleSave}>설정 저장</Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Data Backup / Restore */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">데이터 백업 / 복원</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            모든 CRM 데이터를 JSON 파일로 내보내거나, 이전에 내보낸 파일에서 복원할 수 있습니다.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              데이터 내보내기
+            </Button>
+            <Button variant="outline" onClick={handleImportClick}>
+              <Upload className="mr-2 h-4 w-4" />
+              데이터 가져오기
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+          {importMessage && (
+            <p
+              className={`text-sm ${
+                importMessage.type === 'success'
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
+              }`}
+            >
+              {importMessage.text}
+            </p>
+          )}
         </CardContent>
       </Card>
 

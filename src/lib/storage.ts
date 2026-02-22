@@ -24,6 +24,8 @@ export const STORAGE_KEYS = {
   members:     'sp_members',
   reports:     'sp_reports',
   settings:    'sp_settings',
+  dealHistory: 'sp_deal_history',
+  notifications: 'sp_notifications',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
