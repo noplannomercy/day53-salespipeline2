@@ -290,6 +290,16 @@ export interface DealHistory {
   createdAt: string;
 }
 
+/** 이메일 템플릿 — 재사용 가능한 이메일 제목/본문 틀 */
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** 알림 — 활동 마감, 딜 상태 변경, 딜 담당자 배정 등 */
 export interface Notification {
   id: string;
@@ -461,6 +471,7 @@ export const STORAGE_KEYS = {
   SETTINGS: 'sp_settings',
   DEAL_HISTORY: 'sp_deal_history',
   NOTIFICATIONS: 'sp_notifications',
+  TEMPLATES: 'sp_templates',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

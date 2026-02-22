@@ -11,10 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Email, EmailStatus, Contact, Deal } from '@/types/index';
+import type { Email, EmailStatus, EmailTemplate, Contact, Deal } from '@/types/index';
 import { STORAGE_KEYS } from '@/types/index';
 import * as storage from '@/lib/storage';
 import * as emailService from '@/services/email.service';
+import TemplateSelector from '@/components/emails/TemplateSelector';
 
 interface EmailFormProps {
   editId: string | null;
@@ -60,6 +61,11 @@ export default function EmailForm({ editId, onClose, onSaved }: EmailFormProps) 
     }
   }, [editId]);
 
+  function handleTemplateSelect(template: EmailTemplate) {
+    setSubject(template.subject);
+    setBody(template.body);
+  }
+
   // Auto-fill the "to" field when a contact is selected
   function handleContactChange(value: string) {
     setContactId(value);
@@ -97,6 +103,8 @@ export default function EmailForm({ editId, onClose, onSaved }: EmailFormProps) 
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <TemplateSelector onSelect={handleTemplateSelect} />
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="email-contact">연락처 연결 *</Label>
         <Select value={contactId} onValueChange={handleContactChange}>

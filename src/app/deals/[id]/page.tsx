@@ -102,6 +102,9 @@ export default function DealDetailPage() {
   // History state
   const [dealHistoryItems, setDealHistoryItems] = useState<DealHistory[]>([]);
 
+  // Clone loading state
+  const [cloning, setCloning] = useState(false);
+
   const loadData = useCallback(() => {
     const data = dealService.getDealById(dealId);
     setDeal(data);
@@ -343,13 +346,19 @@ export default function DealDetailPage() {
           <Button
             variant="outline"
             size="sm"
+            disabled={cloning}
             onClick={() => {
-              dealService.cloneDeal(deal.id);
-              router.push('/deals');
+              setCloning(true);
+              try {
+                const cloned = dealService.cloneDeal(deal.id);
+                router.push(`/deals/${cloned.id}`);
+              } catch {
+                setCloning(false);
+              }
             }}
           >
             <Copy className="mr-1 h-4 w-4" />
-            복제
+            {cloning ? '복제 중...' : '복제'}
           </Button>
           {deal.status === 'open' ? (
             <>

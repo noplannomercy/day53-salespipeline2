@@ -2,13 +2,15 @@
 
 import { useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { BarChart3, TrendingUp, Activity, Target, Users } from 'lucide-react';
+import { BarChart3, TrendingUp, Activity, Target, Users, UserCheck, Filter } from 'lucide-react';
 import { initSeedData } from '@/lib/seed';
 import PipelineReport from '@/components/reports/PipelineReport';
 import SalesReport from '@/components/reports/SalesReport';
 import ActivityReport from '@/components/reports/ActivityReport';
 import ForecastReport from '@/components/reports/ForecastReport';
 import LeadSourceReport from '@/components/reports/LeadSourceReport';
+import MemberPerformanceReport from '@/components/reports/MemberPerformanceReport';
+import FunnelReport from '@/components/reports/FunnelReport';
 
 export default function ReportsPage() {
   useEffect(() => {
@@ -41,6 +43,14 @@ export default function ReportsPage() {
             <Users className="h-4 w-4 mr-1" />
             리드소스
           </TabsTrigger>
+          <TabsTrigger value="member">
+            <UserCheck className="h-4 w-4 mr-1" />
+            멤버 성과
+          </TabsTrigger>
+          <TabsTrigger value="funnel">
+            <Filter className="h-4 w-4 mr-1" />
+            전환 퍼널
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pipeline">
@@ -57,6 +67,12 @@ export default function ReportsPage() {
         </TabsContent>
         <TabsContent value="leadsource">
           <LeadSourceReport />
+        </TabsContent>
+        <TabsContent value="member">
+          <MemberPerformanceReport />
+        </TabsContent>
+        <TabsContent value="funnel">
+          <FunnelReport />
         </TabsContent>
       </Tabs>
     </div>

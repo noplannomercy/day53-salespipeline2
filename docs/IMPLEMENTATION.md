@@ -320,3 +320,77 @@ Wave 3에서 placeholder로 두었던 딜 상세 탭을 Wave 4 서비스 완성 
 | Wave 4 | 6개 | 31개 |
 | Wave 5 | 7개 | 21개 |
 | **합계** | **29개** | **108개** |
+
+---
+
+## Wave 6 — 피처 확장 II
+
+> 참고: `docs/FEATURE-DISCOVERY.md` — 구현 확정 피처 W6-1 ~ W6-5
+
+### 생성/수정 파일 목록
+
+| 파일 | 역할 | 구분 |
+|------|------|------|
+| `src/types/index.ts` | `EmailTemplate` 타입 + `STORAGE_KEYS.TEMPLATES` 추가 | 수정 |
+| `src/services/template.service.ts` | `getTemplates()`, `createTemplate()`, `updateTemplate()`, `deleteTemplate()` | 신규 |
+| `src/services/notification.service.ts` | `generateDealDeadlineNotifications(deals)` 추가 — D-3/D-1 마감일 딜 자동 알림 | 수정 |
+| `src/services/deal.service.ts` | 딜 조회 시 마감일 알림 자동 트리거 연동 | 수정 |
+| `src/services/report.service.ts` | `getMemberPerformance()`, `getPipelineFunnelData()` 추가 | 수정 |
+| `components/emails/TemplateSelector.tsx` | 이메일 템플릿 선택/미리보기 드롭다운 UI | 신규 |
+| `components/emails/EmailForm.tsx` | 템플릿 선택 시 본문 자동 채우기 연동 | 수정 |
+| `app/deals/[id]/page.tsx` | 헤더에 복제 버튼 추가 (기존 `cloneDeal` 재사용) | 수정 |
+| `components/reports/MemberPerformanceReport.tsx` | 멤버별 딜 성사율·활동 수 바 차트 (Recharts) | 신규 |
+| `components/reports/FunnelReport.tsx` | 스테이지별 딜 수 깔때기 차트 (Recharts FunnelChart) | 신규 |
+| `app/reports/page.tsx` | 멤버 성과 + 퍼널 탭 추가 (기존 5탭 → 7탭) | 수정 |
+
+### 의존성
+
+- Wave 1–5 완료 필요
+- `T6-4` (EmailForm UI)는 `T6-3` (template.service + types) 완료 후 진행
+- `T6-1`, `T6-2`, `T6-3`, `T6-5`는 상호 독립 (병렬 가능)
+- `reports/page.tsx`는 `T6-5` 단독 수정 — 타 태스크와 충돌 없음
+
+### 태스크 분해
+
+| # | 태스크 | 생성/수정 파일 | 병렬 그룹 |
+|---|--------|---------------|-----------|
+| T6-1 | **딜 기한 알림 자동 생성** | `notification.service.ts`, `deal.service.ts` | 1단계 |
+| T6-2 | **딜 상세 내 복제 버튼** | `app/deals/[id]/page.tsx` | 1단계 |
+| T6-3 | **이메일 템플릿 기반** (types + service) | `types/index.ts`, 새 `template.service.ts` | 1단계 |
+| T6-4 | **이메일 템플릿 UI** | 새 `TemplateSelector.tsx`, `EmailForm.tsx` | T6-3 이후 (2단계) |
+| T6-5 | **리포트 확장** (멤버 성과 + 퍼널) | `report.service.ts`, 새 `MemberPerformanceReport.tsx`, 새 `FunnelReport.tsx`, `reports/page.tsx` | 1단계 |
+
+**병렬 실행 전략:**
+```
+1단계 (병렬): T6-1 / T6-2 / T6-3 / T6-5
+2단계 (순차): T6-4  ← template.service.ts 완성 후
+```
+
+> ⚠️ `reports/page.tsx`는 T6-5 단독 수정. T6-4의 `EmailForm.tsx`는 T6-5와 충돌 없음.
+
+---
+
+## 서비스 함수 총계 (Wave 6 포함)
+
+| Wave | 서비스 파일 | 함수 수 |
+|------|------------|---------|
+| Wave 2 | pipeline, stage, company, contact, lead, member | 27개 |
+| Wave 3 | deal | 7개 |
+| Wave 4 | activity, note, tag, email, attachment, report, dashboard | 22개 |
+| Wave 5 | deal(+2), contact(+1), report(+1), 신규 backup/notification/history | +10개 |
+| Wave 6 | notification(+1), deal(+1 트리거), report(+2), 신규 template | +7개 |
+| **합계** | **17개 서비스** | **~73개** |
+
+---
+
+## 전체 태스크 요약 (Wave 6 포함)
+
+| Wave | 태스크 수 | 파일 수 |
+|------|----------|---------|
+| Wave 1 | 6개 | 17개 |
+| Wave 2 | 5개 | 25개 |
+| Wave 3 | 5개 | 14개 |
+| Wave 4 | 6개 | 31개 |
+| Wave 5 | 7개 | 21개 |
+| Wave 6 | 5개 | 11개 (신규 4 + 수정 7) |
+| **합계** | **34개** | **119개** |

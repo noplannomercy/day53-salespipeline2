@@ -264,6 +264,100 @@ export function getWeightedPipelineValue(pipelineId?: string): WeightedStageData
   });
 }
 
+// ─────────────────────────────────────────────
+// Member performance
+// ─────────────────────────────────────────────
+
+export interface MemberPerformanceStat {
+  memberId: string;
+  memberName: string;
+  wonCount: number;
+  totalCount: number;
+  activityCount: number;
+}
+
+/**
+ * Aggregate member deal performance: won/total deals and activity count per member.
+ */
+export function getMemberPerformance(): MemberPerformanceStat[] {
+  const deals = storage.getAll<Deal>(STORAGE_KEYS.DEALS);
+  const activities = storage.getAll<Activity>(STORAGE_KEYS.ACTIVITIES);
+  const members = storage.getAll<Member>(STORAGE_KEYS.MEMBERS);
+
+  const dealCountMap = new Map<string, { wonCount: number; totalCount: number }>();
+  for (const deal of deals) {
+    const existing = dealCountMap.get(deal.assignedTo) ?? { wonCount: 0, totalCount: 0 };
+    existing.totalCount += 1;
+    if (deal.status === 'won') {
+      existing.wonCount += 1;
+    }
+    dealCountMap.set(deal.assignedTo, existing);
+  }
+
+  const activityCountMap = new Map<string, number>();
+  for (const a of activities) {
+    activityCountMap.set(a.assignedTo, (activityCountMap.get(a.assignedTo) ?? 0) + 1);
+  }
+
+  return members.map((m) => {
+    const dealStat = dealCountMap.get(m.id) ?? { wonCount: 0, totalCount: 0 };
+    return {
+      memberId: m.id,
+      memberName: m.name,
+      wonCount: dealStat.wonCount,
+      totalCount: dealStat.totalCount,
+      activityCount: activityCountMap.get(m.id) ?? 0,
+    };
+  });
+}
+
+// ─────────────────────────────────────────────
+// Pipeline funnel
+// ─────────────────────────────────────────────
+
+export interface PipelineFunnelDatum {
+  stageId: string;
+  stageName: string;
+  dealCount: number;
+  totalValue: number;
+}
+
+/**
+ * Get pipeline funnel data: deal count and total value per stage for the current
+ * (default) pipeline, sorted by stage order.
+ */
+export function getPipelineFunnelData(): PipelineFunnelDatum[] {
+  const pipelines = storage.getAll<Pipeline>(STORAGE_KEYS.PIPELINES);
+  const defaultPipeline = pipelines.find((p) => p.isDefault) ?? pipelines[0];
+  if (!defaultPipeline) return [];
+
+  const stages = storage.getAll<Stage>(STORAGE_KEYS.STAGES);
+  const pipelineStages = stages
+    .filter((s) => s.pipelineId === defaultPipeline.id)
+    .sort((a, b) => a.order - b.order);
+
+  const deals = storage.getAll<Deal>(STORAGE_KEYS.DEALS);
+
+  const stageStats = new Map<string, { dealCount: number; totalValue: number }>();
+  for (const deal of deals) {
+    if (deal.pipelineId !== defaultPipeline.id) continue;
+    const existing = stageStats.get(deal.stageId) ?? { dealCount: 0, totalValue: 0 };
+    existing.dealCount += 1;
+    existing.totalValue += deal.value;
+    stageStats.set(deal.stageId, existing);
+  }
+
+  return pipelineStages.map((stage) => {
+    const stat = stageStats.get(stage.id) ?? { dealCount: 0, totalValue: 0 };
+    return {
+      stageId: stage.id,
+      stageName: stage.name,
+      dealCount: stat.dealCount,
+      totalValue: stat.totalValue,
+    };
+  });
+}
+
 export interface LeadSourceStat {
   source: string;
   count: number;

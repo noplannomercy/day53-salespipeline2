@@ -1,6 +1,7 @@
 현재 프로젝트의 코드베이스와 docs/ 전체 문서를 읽어줘.
 
-docs/FEATURE-DISCOVERY.md를 읽고 제안된 피처 전체를 구현 계획에 반영해.
+docs/FEATURE-DISCOVERY.md를 읽고 미구현 피처를 구현 계획에 반영해.
+이미 구현 완료된 피처는 제외해.
 
 수행할 작업:
 1. docs/IMPLEMENTATION.md에 Feature Wave 추가
@@ -9,15 +10,14 @@ docs/FEATURE-DISCOVERY.md를 읽고 제안된 피처 전체를 구현 계획에 
    - 파일별 의존성
    - 태스크 분해
    - 병렬 가능한 피처 그룹핑
+   - 같은 파일을 여러 태스크에서 수정하는 경우 충돌 주의사항 표기
 
-2. CLAUDE.md 업데이트
-   - 새 엔티티/서비스/컴포넌트가 있으면 반영
-   - 60줄 이내 유지
+2. 변경사항 반영이 필요한 docs/ 문서를 모두 업데이트
+   - CLAUDE.md는 60줄 이내 유지
 
-3. docs/ARCHITECTURE.md 업데이트
-   - 새 서비스/컴포넌트 추가 반영
-
-4. docs/DATABASE.md 업데이트 (변경 있는 경우만)
-   - 새 엔티티나 필드 변경 반영
+5. docs/TASK-LOG.md에 작업 기록
+   - 수정한 문서명
+   - 추가/변경/삭제 내용 요약
+   - 영향 범위
 
 코드 작성하지 마. 문서 업데이트와 계획만.
